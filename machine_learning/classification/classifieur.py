@@ -137,7 +137,7 @@ X_val, Y_val = create_xy(datas=datas_val)
 
 
 
-
+"""
 from sklearn.ensemble import AdaBoostClassifier
 
 clfA = AdaBoostClassifier(n_estimators=10) # To change
@@ -161,15 +161,15 @@ clfF.fit(X_train, Y_train)
 y = clfF.predict(X_val)
 
 print(f"Taux d'erreur Foret: {np.mean(y != Y_val)}")
-
+"""
 from sklearn import svm
 
-svm_model = svm.SVC(kernel='linear') 
+svm_model = svm.SVC(kernel='poly') 
 svm_model.fit(X_train, Y_train)
 y = svm_model.predict(X_val)
 
 print(f"Taux d'erreur SVM: {np.mean(y != Y_val)}")
-
+"""
 from sklearn.neighbors import KNeighborsClassifier
 
 clfK = KNeighborsClassifier(n_neighbors=5) # To change
@@ -177,7 +177,7 @@ clfK.fit(X_train, Y_train)
 y = clfK.predict(X_val)
 
 print(f"Taux d'erreur KNN: {np.mean(y != Y_val)}")
-
+"""
 
 
 from skimage.feature import hog
@@ -200,7 +200,7 @@ X_train_HOG = extract_hog(datas=datas_train)
 
 # Update validation dataset
 X_val_HOG = extract_hog(datas=datas_val)
-
+"""
 clfA = AdaBoostClassifier(n_estimators=10)
 clfA.fit(X_train_HOG, Y_train)
 y_HOG = clfA.predict(X_val_HOG)
@@ -218,17 +218,55 @@ clfF.fit(X_train_HOG, Y_train)
 y_HOG = clfF.predict(X_val_HOG)
 
 print(f"Taux d'erreur Foret HOG : {np.mean(y_HOG != Y_val)}")
-
-svm_model = svm.SVC(kernel='linear') 
+"""
+svm_model = svm.SVC(kernel='poly') 
 svm_model.fit(X_train_HOG, Y_train)
 y_HOG = svm_model.predict(X_val_HOG)
 
 print(f"Taux d'erreur SVM HOG: {np.mean(y_HOG != Y_val)}")
 
+"""
 clfK = KNeighborsClassifier(n_neighbors=8)
 clfK.fit(X_train_HOG, Y_train)
 y_HOG = clfK.predict(X_val_HOG)
 
 print(f"Taux d'erreur KNN HOG: {np.mean(y_HOG != Y_val)}")
+"""
+from skimage.color import rgb2hsv
+
+def extract_color_features(datas):
+    # Creating X array with all HOG information of images
+    X = []
+
+    for name, data in datas.items():
+        for row in data["labels"].values():
+            # Convertir l'image en espace colorimétrique HSV
+            hsv_image = rgb2hsv(row["img"])
+
+            # Calculer l'histogramme de couleur pour chaque canal
+            hue_hist = np.histogram(hsv_image[:,:,0], bins=10, range=(0, 1), density=True)[0]
+            saturation_hist = np.histogram(hsv_image[:,:,1], bins=10, range=(0, 1), density=True)[0]
+            value_hist = np.histogram(hsv_image[:,:,2], bins=10, range=(0, 1), density=True)[0]
+
+            # Concaténer les histogrammes de couleur
+            color_features = np.concatenate((hue_hist, saturation_hist, value_hist))
+
+            X.append(color_features)
+
+    return np.array(X)
 
 
+# Update training dataset
+X_train_COLORS = extract_color_features(datas=datas_train)
+
+# Update validation dataset
+X_val_COLORS = extract_color_features(datas=datas_val)
+
+X_train_combined = np.concatenate((X_train_HOG, X_train_COLORS), axis=1)
+X_val_combined = np.concatenate((X_val_HOG, X_val_COLORS), axis=1)
+
+clf = svm.SVC(kernel='poly') 
+clf.fit(X_train_combined, Y_train)
+y_combined = clf.predict(X_val_combined)
+
+print(f"Taux d'erreur SVM HSV : {np.mean(y_combined != Y_val)}")
