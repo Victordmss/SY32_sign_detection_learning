@@ -185,6 +185,7 @@ def extract_color_features(datas):
 
 
 from sklearn import svm
+from skimage import img_as_float, draw
 
 # Update training dataset
 X_train_COLORS = extract_color_features(datas=datas_train)
@@ -200,6 +201,8 @@ clf.fit(X_train_combined, Y_train)
 y_combined = clf.predict(X_val_combined)
 
 
+from skimage.draw import rectangle
+
 # Fonction pour faire glisser une fenêtre sur l'image
 def sliding_window(image, step_size, window_size):
     for y in range(0, image.shape[0] - window_size[1], step_size):
@@ -207,47 +210,87 @@ def sliding_window(image, step_size, window_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
 
 # Dossier contenant les images de test
-test_image_folder = 'dataset-main-train/train\/images'
-output_folder = 'results_detection'
+test_image_folder = 'dataset-main-train/train/images'
+output_folder = 'result_detection'
 
 if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
-window_size = (64, 64)  # Taille de la fenêtre
+window_size = AVERAGE_SIZE_IMAGE  # Taille de la fenêtre
 step_size = 32  # Pas de la fenêtre
 
 for filename in os.listdir(test_image_folder):
-    if filename.endswith('.jpg') or filename.endswith('.png'):
-        # Charger l'image de test
-        test_image_path = os.path.join(test_image_folder, filename)
-        test_image = io.imread(test_image_path)
+    # Charger l'image de test
+    test_image_path = os.path.join(test_image_folder, filename)
+    test_image = io.imread(test_image_path)
 
-        # Faire glisser la fenêtre et détecter les feux rouges
-        for (x, y, window) in sliding_window(test_image, step_size=step_size, window_size=window_size):
-            if window.shape[0] != window_size[1] or window.shape[1] != window_size[0]:
-                continue
+    # Faire glisser la fenêtre et détecter les feux rouges
+    for (x, y, window) in sliding_window(test_image, step_size=step_size, window_size=window_size):
+        if window.shape[0] != window_size[1] or window.shape[1] != window_size[0]:
+            continue
             
-            # Extraire les caractéristiques HOG et de couleur de la fenêtre
-            hog_features = np.array(hog(rgb2gray(window))).flatten().reshape(1, -1)
-            hsv_image = rgb2hsv(window)
-            hue_hist = np.histogram(hsv_image[:,:,0], bins=10, range=(0, 1), density=True)[0]
-            saturation_hist = np.histogram(hsv_image[:,:,1], bins=10, range=(0, 1), density=True)[0]
-            value_hist = np.histogram(hsv_image[:,:,2], bins=10, range=(0, 1), density=True)[0]
-            color_features = np.concatenate((hue_hist, saturation_hist, value_hist)).reshape(1, -1)
+        # Extraire les caractéristiques HOG et de couleur de la fenêtre
+        hog_features = np.array(hog(rgb2gray(window))).flatten().reshape(1, -1)
+        hsv_image = rgb2hsv(window)
+        hue_hist = np.histogram(hsv_image[:,:,0], bins=10, range=(0, 1), density=True)[0]
+        saturation_hist = np.histogram(hsv_image[:,:,1], bins=10, range=(0, 1), density=True)[0]
+        value_hist = np.histogram(hsv_image[:,:,2], bins=10, range=(0, 1), density=True)[0]
+        color_features = np.concatenate((hue_hist, saturation_hist, value_hist)).reshape(1, -1)
 
-            # Combiner les caractéristiques HOG et de couleur
-            combined_features = np.concatenate((hog_features, color_features), axis=1)
+        # Combiner les caractéristiques HOG et de couleur
+        combined_features = np.concatenate((hog_features, color_features), axis=1)
             
-            # Prédire avec le classificateur
-            prediction = clf.predict(combined_features)
-            
-            if prediction == 5:  # Si le classificateur prédit un feu rouge (code 5 pour "frouge")
+        # Prédire avec le classificateur
+        prediction = clf.predict(combined_features)
+        print(prediction)
+        if prediction == 0: #danger
+                # Dessiner un rectangle autour de la fenêtre 
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [165, 165, 0]  # Colorier en jaune
+        
+        """
+        if prediction == 1: #interdiction
+                # Dessiner un rectangle autour de la fenêtre 
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [255, 0, 255]  # Colorier en rose
+        """
+                
+        if prediction == 2: #obligation
                 # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
-                rr, cc = draw.rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
-                test_image[rr, cc] = [0, 1, 0]  # Colorier en vert
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [0, 0, 255]  # Colorier en bleu
+                
+        if prediction == 3: #stop
+                # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [100, 0, 0]  # Colorier en rouge sombre
+                
+        if prediction == 4: #ceder
+                # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [255, 255, 255]  # Colorier en blanc
+            
+        if prediction == 5: #feu rouge
+                # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [255, 0, 0]  # Colorier en rouge
+                
+        if prediction == 6: #feu orange
+                # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [255, 165, 0]  # Colorier en orange
+                
+        if prediction == 7: #feu vert
+                # Dessiner un rectangle autour de la fenêtre (utiliser skimage.draw pour dessiner)
+                rr, cc = rectangle(start=(y, x), extent=(window_size[1], window_size[0]), shape=test_image.shape)
+                test_image[rr, cc] = [0, 255, 0]  # Colorier en vert
+                
+                
+        
 
         # Enregistrer l'image avec les feux rouges détectés
         output_path = os.path.join(output_folder, filename)
         io.imsave(output_path, test_image)
         print(f"Processed and saved: {filename}")
+
 
