@@ -1,202 +1,122 @@
-import numpy as np
 import torch
-from torch import tensor
-import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import pandas as pd
-import os
-from ml_utils import *
-from utils import *
-import csv
-from PIL import Image
-
+from deep_learning.config import *
+from utils.utils import *
+from torch import tensor
+from skimage.util import img_as_float32
+import torch.nn as nn
+import torch.nn.functional as F
+from skimage.transform import resize
 
 # Create a dataset class to load the images and labels from the folder 
-class Dataset(torch.utils.data.Dataset): 
-    def __init__( 
-        self, image_dir, label_dir,
-        image_size=416): 
-                    
+class SignDataset(Dataset): 
+    def __init__(self, image_dir, label_dir):         
         # Image and label directories 
+        self.X, self.y = load_dataset(image_dir, label_dir)
         self.image_dir = image_dir 
         self.label_dir = label_dir 
-        # Image size 
-        self.image_size = image_size 
 
-        self.num_classes = NB_CLASSES
-        # Ignore IoU threshold 
-        self.iou_threshold = 0.5
-
-    def __len__(self): 
-        return len(os.listdir(self.image_dir))
+    def __len__(self):
+        return len(self.y)
     
     def __getitem__(self, idx): 
-        # Getting the label path 
-        label_path = os.path.join(self.label_dir, (str(idx).zfill(4)+".csv"))
-        try:
-            # Getting the image path 
-            img_path = os.path.join(self.image_dir, (str(idx).zfill(4)+".jpg")) 
-            image = np.array(Image.open(img_path).convert("RGB")) 
-
-            # Creating the label array
-            # 5 columns: x0, y0, x1, y1, class_label (currently as str)
-            with open(label_path, "r") as file:
-                        reader = csv.reader(file)
-                        bboxes = list(reader)            
-
-            # Process changes on bbox definition
-            for box in bboxes:
-                if box:
-                    # Get the class name as int
-                    box[4] = CLASSE_TO_INT.get(box[4])  
-
-                    # Convert values to int
-                    box[:] = map(int, box)
-
-                    # Normalise coords
-                    box[0] = box[0] / image.shape[1]
-                    box[1] = box[1] / image.shape[0]
-                    box[2] = box[2] / image.shape[1]
-                    box[3] = box[3] / image.shape[0]
-
-            return image, bboxes
-        
-        except Exception as e:
-            print(f"Erreur when processing index {idx}: {e}")
-            return self.__getitem__((idx + 1) % self.__len__())
+        x = img_as_float32(self.X[idx])
+        x.resize((1, 24, 24))
+        x = tensor(x)
+        y = [np.float32(self.y[idx])]
+        y = tensor(y)
+        return x, y
+    
+    def visualize_repartition(self):    
+        plt.hist(self.y, bins=np.arange(self.y.min(), self.y.max()+1)-0.5, edgecolor='black')  
+        plt.xlabel('Valeurs')
+        plt.ylabel('Fréquence')
+        plt.title('Histogramme de répartition des classes')
+        plt.show()
 
 
-# Defining CNN Block 
-class CNNBlock(nn.Module): 
-	def __init__(self, in_channels, out_channels, use_batch_norm=True, **kwargs): 
-		super().__init__() 
-		self.conv = nn.Conv2d(in_channels, out_channels, bias=not use_batch_norm, **kwargs) 
-		self.bn = nn.BatchNorm2d(out_channels) 
-		self.activation = nn.LeakyReLU(0.1) 
-		self.use_batch_norm = use_batch_norm 
+# Create a classification network
+class SignNet(nn.Module):
+    def __init__(self):
+        super(SignNet, self).__init__()
+        # Convolution 2D avec 2 noyaus 3x3 et un padding de 1
+        self.conv1 = nn.Conv2d(1, 2, 3, padding=1)
+        # Convolution 2D avec 4 noyaux 3x3 et un padding de 1
+        self.conv2 = nn.Conv2d(2, 4, 3, padding=1)
+        # Couche fully connected avec une seule sortie
+        self.fc1 = nn.Linear(144, 1)
 
-	def forward(self, x): 
-		# Applying convolution 
-		x = self.conv(x) 
-		# Applying BatchNorm and activation if needed 
-		if self.use_batch_norm: 
-			x = self.bn(x) 
-			return self.activation(x) 
-		else: 
-			return x
+    def forward(self, x):
+        # Convolution de x avec la couche conv1
+        x = self.conv1(x)
+        # Fonction d'activation ReLU
+        x = F.relu(x)
+        # Max pooling sur une fenêtre 2x2
+        x = F.max_pool2d(x, (2, 2))
+        # Convolution de x avec la couche conv2
+        x = self.conv2(x)
+        # Fonction d'activation ReLU
+        x = F.relu(x)
+        # Max pooling sur une fenêtre 2x2
+        x = F.max_pool2d(x, (2, 2))
+        # Redimensionnement de x en une colonne
+        x = x.view(-1, self.fc1.in_features)
+        # Opération avec la couche fully connected fc1
+        x = self.fc1(x)
 
-
-# Defining residual block 
-class ResidualBlock(nn.Module): 
-	def __init__(self, channels, use_residual=True, num_repeats=1): 
-		super().__init__() 
-		
-		# Defining all the layers in a list and adding them based on number of 
-		# repeats mentioned in the design 
-		res_layers = [] 
-		for _ in range(num_repeats): 
-			res_layers += [ 
-				nn.Sequential( 
-					nn.Conv2d(channels, channels // 2, kernel_size=1), 
-					nn.BatchNorm2d(channels // 2), 
-					nn.LeakyReLU(0.1), 
-					nn.Conv2d(channels // 2, channels, kernel_size=3, padding=1), 
-					nn.BatchNorm2d(channels), 
-					nn.LeakyReLU(0.1) 
-				) 
-			] 
-		self.layers = nn.ModuleList(res_layers) 
-		self.use_residual = use_residual 
-		self.num_repeats = num_repeats 
-	
-	# Defining forward pass 
-	def forward(self, x): 
-		for layer in self.layers: 
-			residual = x 
-			x = layer(x) 
-			if self.use_residual: 
-				x = x + residual 
-		return x
+        return x
 
 
-# Defining scale prediction class 
-class ScalePrediction(nn.Module): 
-	def __init__(self, in_channels, num_classes): 
-		super().__init__() 
-		# Defining the layers in the network 
-		self.pred = nn.Sequential( 
-			nn.Conv2d(in_channels, 2*in_channels, kernel_size=3, padding=1), 
-			nn.BatchNorm2d(2*in_channels), 
-			nn.LeakyReLU(0.1), 
-			nn.Conv2d(2*in_channels, (num_classes + 5) * 3, kernel_size=1), 
-		) 
-		self.num_classes = num_classes 
-	
-	# Defining the forward pass and reshaping the output to the desired output 
-	# format: (batch_size, 3, grid_size, grid_size, num_classes + 5) 
-	def forward(self, x): 
-		output = self.pred(x) 
-		output = output.view(x.size(0), 3, self.num_classes + 5, x.size(2), x.size(3)) 
-		output = output.permute(0, 1, 3, 4, 2) 
-		return output
+class SignClassifier():
+    def __init__(self):
+        self.net = SignNet()
+        self.criterion = torch.nn.MSELoss()
+        self.optimizer = torch.optim.SGD(self.net.parameters(), lr=0.01)
 
+    def fit(self, n_epoch=NB_EPOCHS, batch_size=BATCH_SIZE):
+        dataset = SignDataset(TRAINING_IMAGE_FILE_PATH, TRAINING_LABEL_FILE_PATH)
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        loss_courant = 0.0
+        nb_correct = 0.0
+        nb_courant = 0.0
+        PRINT_INTERVAL = 50
+        for epoch in range(n_epoch):
+            for batch_idx, (X, y) in enumerate(loader):
+                # Initialise le gradient courant à zéro
+                self.optimizer.zero_grad()
+                # Prédit la classe des éléments X du batch courant
+                y_pred = self.net(X)
+                # Calcul la fonction de coût sur ce batch
+                loss = self.criterion(y_pred, y)
+                # Rétropropagation pour calculer le gradient
+                loss.backward()
+                # Effectue un pas de la descente de gradient
+                self.optimizer.step()
 
-# Class for defining YOLOv3 model 
-class YOLOv3(nn.Module): 
-    def __init__(self, in_channels=3, num_classes=20): 
-        super().__init__() 
-        self.num_classes = num_classes 
-        self.in_channels = in_channels 
-  
-        # Layers list for YOLOv3 
-        self.layers = nn.ModuleList([ 
-            CNNBlock(in_channels, 32, kernel_size=3, stride=1, padding=1), 
-            CNNBlock(32, 64, kernel_size=3, stride=2, padding=1), 
-            ResidualBlock(64, num_repeats=1), 
-            CNNBlock(64, 128, kernel_size=3, stride=2, padding=1), 
-            ResidualBlock(128, num_repeats=2), 
-            CNNBlock(128, 256, kernel_size=3, stride=2, padding=1), 
-            ResidualBlock(256, num_repeats=8), 
-            CNNBlock(256, 512, kernel_size=3, stride=2, padding=1), 
-            ResidualBlock(512, num_repeats=8), 
-            CNNBlock(512, 1024, kernel_size=3, stride=2, padding=1), 
-            ResidualBlock(1024, num_repeats=4), 
-            CNNBlock(1024, 512, kernel_size=1, stride=1, padding=0), 
-            CNNBlock(512, 1024, kernel_size=3, stride=1, padding=1), 
-            ResidualBlock(1024, use_residual=False, num_repeats=1), 
-            CNNBlock(1024, 512, kernel_size=1, stride=1, padding=0), 
-            ScalePrediction(512, num_classes=num_classes), 
-            CNNBlock(512, 256, kernel_size=1, stride=1, padding=0), 
-            nn.Upsample(scale_factor=2), 
-            CNNBlock(768, 256, kernel_size=1, stride=1, padding=0), 
-            CNNBlock(256, 512, kernel_size=3, stride=1, padding=1), 
-            ResidualBlock(512, use_residual=False, num_repeats=1), 
-            CNNBlock(512, 256, kernel_size=1, stride=1, padding=0), 
-            ScalePrediction(256, num_classes=num_classes), 
-            CNNBlock(256, 128, kernel_size=1, stride=1, padding=0), 
-            nn.Upsample(scale_factor=2), 
-            CNNBlock(384, 128, kernel_size=1, stride=1, padding=0), 
-            CNNBlock(128, 256, kernel_size=3, stride=1, padding=1), 
-            ResidualBlock(256, use_residual=False, num_repeats=1), 
-            CNNBlock(256, 128, kernel_size=1, stride=1, padding=0), 
-            ScalePrediction(128, num_classes=num_classes) 
-        ]) 
-      
-    # Forward pass for YOLOv3 with route connections and scale predictions 
-    def forward(self, x): 
-        outputs = [] 
-        route_connections = [] 
-  
-        for layer in self.layers: 
-            if isinstance(layer, ScalePrediction): 
-                outputs.append(layer(x)) 
-                continue
-            x = layer(x) 
-  
-            if isinstance(layer, ResidualBlock) and layer.num_repeats == 8: 
-                route_connections.append(x) 
-              
-            elif isinstance(layer, nn.Upsample): 
-                x = torch.cat([x, route_connections[-1]], dim=1) 
-                route_connections.pop() 
-        return outputs
+                loss_courant += loss.item()
+                prediction = 2 * (y_pred > 0) - 1
+                nb_correct += (prediction == y).sum().item()
+                nb_courant += batch_size
+                if (batch_idx % PRINT_INTERVAL) == 0 and batch_idx > 0:
+                    train_err = 1 - nb_correct / nb_courant
+                    print(
+                        f'Epoch: {epoch+1:02d} ; '
+                        f'Batch: {batch_idx-PRINT_INTERVAL:03d}-{batch_idx:03d} ; '
+                        f'train-loss: {loss_courant:.2f} ; '
+                        f'train-err: {train_err*100:.2f}'
+                    )
+                    loss_courant = 0.0
+                    nb_correct = 0.0
+                    nb_courant = 0.0
+
+        return self
+
+    def predict(self, X):
+        X = img_as_float32(X)
+        if len(X.shape) < 3:  # Une seule image
+            X.resize((1, 1, 24, 24))
+        else:
+            X = X.reshape((X.shape[0], 1, 24, 24))
+        y = self.net(tensor(X))
+        y_pred = 2 * (y.detach().numpy().flatten() > 0) - 1
+        return y_pred
