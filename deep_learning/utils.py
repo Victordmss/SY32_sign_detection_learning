@@ -1,12 +1,11 @@
-import torch 
 from PIL import ImageFile 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 import numpy as np 
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches 
 
-# Dictionnaire de correspondance des noms de classe aux entiers
-name_to_int = {
+# Dictionary for mapping class names to integers
+CLASSE_TO_INT = {
     "danger": 0,
     "interdiction": 1,
     "obligation": 2,
@@ -19,7 +18,8 @@ name_to_int = {
     "empty": 9
 }
 
-int_to_class = {
+# Dictionary for mapping integers to class names
+INT_TO_CLASSE = {
     0: "danger",
     1: "interdiction",
     2: "obligation",
@@ -32,150 +32,96 @@ int_to_class = {
     9: "empty"
 }
 
-# Defining a function to calculate Intersection over Union (IoU) 
-def iou(box1, box2, is_pred=True): 
-	if is_pred: 
-		# IoU score for prediction and label 
-		# box1 (prediction) and box2 (label) are both in [x, y, width, height] format 
-		
-		# Box coordinates of prediction 
-		b1_x1 = box1[..., 0:1] - box1[..., 2:3] / 2
-		b1_y1 = box1[..., 1:2] - box1[..., 3:4] / 2
-		b1_x2 = box1[..., 0:1] + box1[..., 2:3] / 2
-		b1_y2 = box1[..., 1:2] + box1[..., 3:4] / 2
+# Data labels key
+CLASSES = ["danger", "interdiction", "obligation", "stop", "ceder", "frouge", "forange", "fvert", "ff", "empty"]
 
-		# Box coordinates of ground truth 
-		b2_x1 = box2[..., 0:1] - box2[..., 2:3] / 2
-		b2_y1 = box2[..., 1:2] - box2[..., 3:4] / 2
-		b2_x2 = box2[..., 0:1] + box2[..., 2:3] / 2
-		b2_y2 = box2[..., 1:2] + box2[..., 3:4] / 2
+# Number of classes
+NB_CLASSES = len(CLASSES)
 
-		# Get the coordinates of the intersection rectangle 
-		x1 = torch.max(b1_x1, b2_x1) 
-		y1 = torch.max(b1_y1, b2_y1) 
-		x2 = torch.min(b1_x2, b2_x2) 
-		y2 = torch.min(b1_y2, b2_y2) 
-		# Make sure the intersection is at least 0 
-		intersection = (x2 - x1).clamp(0) * (y2 - y1).clamp(0) 
+# Function to calculate Intersection over Union (IoU) 
+def iou(box1, box2):
+    """
+    Calcule l'Intersection over Union (IoU) entre deux boîtes englobantes.
 
-		# Calculate the union area 
-		box1_area = abs((b1_x2 - b1_x1) * (b1_y2 - b1_y1)) 
-		box2_area = abs((b2_x2 - b2_x1) * (b2_y2 - b2_y1)) 
-		union = box1_area + box2_area - intersection 
+    Parameters:
+    box1 (tuple): Une boîte englobante sous la forme (x1, y1, x2, y2) où (x1, y1) est le coin supérieur gauche et (x2, y2) est le coin inférieur droit.
+    box2 (tuple): Une deuxième boîte englobante sous la même forme (x1, y1, x2, y2).
 
-		# Calculate the IoU score 
-		epsilon = 1e-6
-		iou_score = intersection / (union + epsilon) 
+    Returns:
+    float: La valeur IoU entre les deux boîtes englobantes.
+    """
+    
+    # Coordonnées des coins des boîtes
+    x1_box1, y1_box1, x2_box1, y2_box1 = box1
+    x1_box2, y1_box2, x2_box2, y2_box2 = box2
 
-		# Return IoU score 
-		return iou_score 
-	
-	else: 
-		# IoU score based on width and height of bounding boxes 
-		
-		# Calculate intersection area 
-		intersection_area = torch.min(box1[..., 0], box2[..., 0]) * torch.min(box1[..., 1], box2[..., 1]) 
+    # Calcul des coordonnées de l'intersection
+    x1_inter = max(x1_box1, x1_box2)
+    y1_inter = max(y1_box1, y1_box2)
+    x2_inter = min(x2_box1, x2_box2)
+    y2_inter = min(y2_box1, y2_box2)
 
-		# Calculate union area 
-		box1_area = box1[..., 0] * box1[..., 1] 
-		box2_area = box2[..., 0] * box2[..., 1] 
-		union_area = box1_area + box2_area - intersection_area 
+    # Calcul de l'aire de l'intersection
+    inter_area = max(0, x2_inter - x1_inter) * max(0, y2_inter - y1_inter)
 
-		# Calculate IoU score 
-		iou_score = intersection_area / union_area 
+    # Calcul de l'aire des deux boîtes
+    box1_area = (x2_box1 - x1_box1) * (y2_box1 - y1_box1)
+    box2_area = (x2_box2 - x1_box2) * (y2_box2 - y1_box2)
 
-		# Return IoU score 
-		return iou_score
+    # Calcul de l'aire de l'union
+    union_area = box1_area + box2_area - inter_area
 
+    # Calcul de l'IoU
+    iou = inter_area / union_area if union_area > 0 else 0
 
-# Non-maximum suppression function to remove overlapping bounding boxes 
-def nms(bboxes, iou_threshold, threshold): 
-	# Filter out bounding boxes with confidence below the threshold. 
-	bboxes = [box for box in bboxes if box[1] > threshold] 
+    return iou
 
-	# Sort the bounding boxes by confidence in descending order. 
-	bboxes = sorted(bboxes, key=lambda x: x[1], reverse=True) 
+# Function to calculate Non Maximum Suppression (NMS) 
+def nms(bboxes, iou_threshold, score_threshold):
+    """
+    Applique la Non-Maximum Suppression (NMS) pour supprimer les boîtes englobantes redondantes.
 
-	# Initialize the list of bounding boxes after non-maximum suppression. 
-	bboxes_nms = [] 
+    Parameters:
+    bboxes (list of tuples): Une liste de tuples sous la forme (x1, y1, x2, y2, score) où (x1, y1) est le coin supérieur gauche, (x2, y2) est le coin inférieur droit et score est la confiance de la détection.
+    iou_threshold (float): Le seuil d'IoU pour supprimer les boîtes redondantes.
+    score_threshold (float): Le seuil de confiance pour garder les boîtes.
 
-	while bboxes: 
-		# Get the first bounding box. 
-		first_box = bboxes.pop(0) 
+    Returns:
+    list of tuples: Les boîtes filtrées après l'application de la NMS.
+    """
+    
+    # Filtrer les boîtes avec un score inférieur au seuil de confiance
+    bboxes = [box for box in bboxes if box[4] >= score_threshold]
+    
+    if len(bboxes) == 0:
+        return []
 
-		# Iterate over the remaining bounding boxes. 
-		for box in bboxes: 
-		# If the bounding boxes do not overlap or if the first bounding box has 
-		# a higher confidence, then add the second bounding box to the list of 
-		# bounding boxes after non-maximum suppression. 
-			if box[0] != first_box[0] or iou( 
-				torch.tensor(first_box[2:]), 
-				torch.tensor(box[2:]), 
-			) < iou_threshold: 
-				# Check if box is not in bboxes_nms 
-				if box not in bboxes_nms: 
-					# Add box to bboxes_nms 
-					bboxes_nms.append(box) 
+    # Trier les boîtes par score de confiance décroissant
+    bboxes = sorted(bboxes, key=lambda x: x[4], reverse=True)
+    
+    # Liste des boîtes conservées
+    selected_bboxes = []
 
-	# Return bounding boxes after non-maximum suppression. 
-	return bboxes_nms
-
-
-# Function to convert cells to bounding boxes 
-def convert_cells_to_bboxes(predictions, anchors, s, is_predictions=True): 
-	# Batch size used on predictions 
-	batch_size = predictions.shape[0] 
-	# Number of anchors 
-	num_anchors = len(anchors) 
-	# List of all the predictions 
-	box_predictions = predictions[..., 1:5] 
-
-	# If the input is predictions then we will pass the x and y coordinate 
-	# through sigmoid function and width and height to exponent function and 
-	# calculate the score and best class. 
-	if is_predictions: 
-		anchors = anchors.reshape(1, len(anchors), 1, 1, 2) 
-		box_predictions[..., 0:2] = torch.sigmoid(box_predictions[..., 0:2]) 
-		box_predictions[..., 2:] = torch.exp( 
-			box_predictions[..., 2:]) * anchors 
-		scores = torch.sigmoid(predictions[..., 0:1]) 
-		best_class = torch.argmax(predictions[..., 5:], dim=-1).unsqueeze(-1) 
-	
-	# Else we will just calculate scores and best class. 
-	else: 
-		scores = predictions[..., 0:1] 
-		best_class = predictions[..., 5:6] 
-
-	# Calculate cell indices 
-	cell_indices = ( 
-		torch.arange(s) 
-		.repeat(predictions.shape[0], 3, s, 1) 
-		.unsqueeze(-1) 
-		.to(predictions.device) 
-	) 
-
-	# Calculate x, y, width and height with proper scaling 
-	x = 1 / s * (box_predictions[..., 0:1] + cell_indices) 
-	y = 1 / s * (box_predictions[..., 1:2] +
-				cell_indices.permute(0, 1, 3, 2, 4)) 
-	width_height = 1 / s * box_predictions[..., 2:4] 
-
-	# Concatinating the values and reshaping them in 
-	# (BATCH_SIZE, num_anchors * S * S, 6) shape 
-	converted_bboxes = torch.cat( 
-		(best_class, scores, x, y, width_height), dim=-1
-	).reshape(batch_size, num_anchors * s * s, 6) 
-
-	# Returning the reshaped and converted bounding box list 
-	return converted_bboxes.tolist()
-
+    while bboxes:
+        # Prendre la boîte avec le score le plus élevé
+        current_box = bboxes.pop(0)
+        selected_bboxes.append(current_box)
+        
+        # Filtrer les boîtes restantes par IoU
+        bboxes = [
+            box for box in bboxes
+            if iou(current_box, box) < iou_threshold
+        ]
+    
+    return selected_bboxes
 
 # Function to plot images with bounding boxes and class labels 
-def plot_image(image, boxes): 
+def plot_bbox_image(image, boxes): 
 	# Getting the color map from matplotlib 
 	colour_map = plt.get_cmap("tab20b") 
-	# Getting 20 different colors from the color map for 20 different classes 
-	colors = [colour_map(i) for i in np.linspace(0, 1, len(name_to_int))] 
+
+	# Getting different colors from the color map for 20 different classes 
+	colors = [colour_map(i) for i in np.linspace(0, 1, NB_CLASSES)] 
 
 	# Reading the image with OpenCV 
 	img = np.array(image) 
@@ -191,13 +137,12 @@ def plot_image(image, boxes):
 	# Plotting the bounding boxes and labels over the image 
 	for box in boxes:
 		# Get the class from the box 
-		class_pred = box[0] 
+		class_pred = box[4] 
 		
-		box = box[2:] 
 		x = box[0] * w 
 		y = box[1] * h 
-		width = box[2] * w
-		height = box[3] * h 
+		width = box[2] * w - x
+		height = box[3] * h - y
 
 		# Create a Rectangle patch with the bounding box 
 		rect = patches.Rectangle( 
@@ -210,15 +155,15 @@ def plot_image(image, boxes):
 		# Add the patch to the Axes 
 		ax.add_patch(rect) 
 		
-		"""# Add class name to the patch 
+		# Add class name to the patch 
 		plt.text( 
 			x, 
 			y, 
-			s=int_to_class[int(class_pred)], 
+			s=INT_TO_CLASSE[int(class_pred)], 
 			color="white", 
 			verticalalignment="top", 
 			bbox={"color": colors[int(class_pred)], "pad": 0}, 
-		) """
+		)
 
 	# Display the plot 
 	plt.show()
