@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from skimage.transform import resize
 
+
 # Create a dataset class to load the images and labels from the folder 
 class SignDataset(Dataset): 
     def __init__(self, image_dir, label_dir):         
@@ -15,16 +16,18 @@ class SignDataset(Dataset):
         self.X, self.y = load_dataset(image_dir, label_dir)
         self.image_dir = image_dir 
         self.label_dir = label_dir 
+        self.transform = TRANFORMATIONS
+
 
     def __len__(self):
         return len(self.y)
     
     def __getitem__(self, idx): 
-        x = img_as_float32(self.X[idx])
-        x.resize((1, 24, 24))
+        x = img_as_float32(self.transform(Image.fromarray(self.X[idx])))
+        x.resize((3, 32, 32))
         x = tensor(x)
         y = [np.float32(self.y[idx])]
-        y = tensor(y)
+        y = tensor(y)      
         return x, y
     
     def visualize_repartition(self):    
@@ -37,86 +40,83 @@ class SignDataset(Dataset):
 
 # Create a classification network
 class SignNet(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes):
         super(SignNet, self).__init__()
-        # Convolution 2D avec 2 noyaus 3x3 et un padding de 1
-        self.conv1 = nn.Conv2d(1, 2, 3, padding=1)
-        # Convolution 2D avec 4 noyaux 3x3 et un padding de 1
-        self.conv2 = nn.Conv2d(2, 4, 3, padding=1)
-        # Couche fully connected avec une seule sortie
-        self.fc1 = nn.Linear(144, 1)
-
+        self.conv_layer1 = nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3)
+        self.conv_layer2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3)
+        self.max_pool1 = nn.MaxPool2d(kernel_size = 2, stride = 2)
+        
+        self.conv_layer3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3)
+        self.conv_layer4 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3)
+        self.max_pool2 = nn.MaxPool2d(kernel_size = 2, stride = 2)
+        
+        self.fc1 = nn.Linear(1600, 128)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Linear(128, num_classes)
+    
+    # Progresses data across layers    
     def forward(self, x):
-        # Convolution de x avec la couche conv1
-        x = self.conv1(x)
-        # Fonction d'activation ReLU
-        x = F.relu(x)
-        # Max pooling sur une fenêtre 2x2
-        x = F.max_pool2d(x, (2, 2))
-        # Convolution de x avec la couche conv2
-        x = self.conv2(x)
-        # Fonction d'activation ReLU
-        x = F.relu(x)
-        # Max pooling sur une fenêtre 2x2
-        x = F.max_pool2d(x, (2, 2))
-        # Redimensionnement de x en une colonne
-        x = x.view(-1, self.fc1.in_features)
-        # Opération avec la couche fully connected fc1
-        x = self.fc1(x)
-
-        return x
-
+        out = self.conv_layer1(x)
+        out = self.conv_layer2(out)
+        out = self.max_pool1(out)
+        
+        out = self.conv_layer3(out)
+        out = self.conv_layer4(out)
+        out = self.max_pool2(out)
+                
+        out = out.reshape(out.size(0), -1)
+        
+        out = self.fc1(out)
+        out = self.relu1(out)
+        out = self.fc2(out)
+        return out
 
 class SignClassifier():
     def __init__(self):
-        self.net = SignNet()
-        self.criterion = torch.nn.MSELoss()
-        self.optimizer = torch.optim.SGD(self.net.parameters(), lr=0.01)
-
-    def fit(self, n_epoch=NB_EPOCHS, batch_size=BATCH_SIZE):
+        self.net = SignNet(NB_CLASSES)
+        self.criterion = torch.nn.CrossEntropyLoss()  
+        self.optimizer = torch.optim.SGD(self.net.parameters(), lr = 0.001, weight_decay = 0.005, momentum = 0.9)  
+    
+    def fit(self):
         dataset = SignDataset(TRAINING_IMAGE_FILE_PATH, TRAINING_LABEL_FILE_PATH)
-        loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
         loss_courant = 0.0
         nb_correct = 0.0
         nb_courant = 0.0
         PRINT_INTERVAL = 50
-        for epoch in range(n_epoch):
-            for batch_idx, (X, y) in enumerate(loader):
-                # Initialise le gradient courant à zéro
+        for epoch in range(NB_EPOCHS):
+            #Load in the data in batches using the train_loader object
+            for i, (images, labels) in enumerate(loader):  
+                # Move tensors to the configured device
+                images = images
+                labels = labels
+                
+                # Forward pass
+                outputs = self.net(images)
+                loss = self.criterion(outputs, labels.squeeze().long())
+                
+                # Backward and optimize
                 self.optimizer.zero_grad()
-                # Prédit la classe des éléments X du batch courant
-                y_pred = self.net(X)
-                # Calcul la fonction de coût sur ce batch
-                loss = self.criterion(y_pred, y)
-                # Rétropropagation pour calculer le gradient
                 loss.backward()
-                # Effectue un pas de la descente de gradient
                 self.optimizer.step()
-
-                loss_courant += loss.item()
-                prediction = 2 * (y_pred > 0) - 1
-                nb_correct += (prediction == y).sum().item()
-                nb_courant += batch_size
-                if (batch_idx % PRINT_INTERVAL) == 0 and batch_idx > 0:
-                    train_err = 1 - nb_correct / nb_courant
-                    print(
-                        f'Epoch: {epoch+1:02d} ; '
-                        f'Batch: {batch_idx-PRINT_INTERVAL:03d}-{batch_idx:03d} ; '
-                        f'train-loss: {loss_courant:.2f} ; '
-                        f'train-err: {train_err*100:.2f}'
-                    )
-                    loss_courant = 0.0
-                    nb_correct = 0.0
-                    nb_courant = 0.0
+                
+                _, predicted = torch.max(outputs.data, 1)
+                nb_correct += (predicted == labels.squeeze().long()).sum().item()
+                nb_courant += BATCH_SIZE
+                train_err = 1 - nb_correct / nb_courant
+            print('Epoch [{}/{}], Loss: {:.4f}, Train Error: {:.4f}'.format(epoch+1, NB_EPOCHS, loss.item(), train_err))           
 
         return self
 
-    def predict(self, X):
-        X = img_as_float32(X)
-        if len(X.shape) < 3:  # Une seule image
-            X.resize((1, 1, 24, 24))
-        else:
-            X = X.reshape((X.shape[0], 1, 24, 24))
-        y = self.net(tensor(X))
-        y_pred = 2 * (y.detach().numpy().flatten() > 0) - 1
-        return y_pred
+    def predict(self, loader):
+        correct = 0
+        total = 0
+        for images, labels in loader:
+            labels = labels.squeeze().long()
+            outputs = self.net(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+        
+        print(f'Accuracy of the network : {100 * correct / total} %')
+

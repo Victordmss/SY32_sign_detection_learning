@@ -9,7 +9,7 @@ import os
 from PIL import Image
 import csv
 
-AVERAGE_SIZE = (24, 24)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
+AVERAGE_SIZE = (32, 32)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
 
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
@@ -56,7 +56,7 @@ def load_dataset(image_dir, label_dir):
 
         try:
             image_path = os.path.join(image_dir, str(file_name).zfill(4) + ".jpg")
-            image = Image.open(image_path).convert("L")
+            image = Image.open(image_path).convert("RGB")
 
             with open(label_path, "r") as file:
                 reader = csv.reader(file)
