@@ -130,7 +130,7 @@ class SignClassifier():
         image = Image.fromarray(X)
 
         # Step 2: Classification of the propositions
-        proposed_bboxes = []
+        scored_bboxes = []
         for (x, y, w, h) in rois[:200]:
             roi = image.crop((x, y, x + w, y + h))
             roi = TRANFORMATIONS(roi).unsqueeze(0)
@@ -138,16 +138,18 @@ class SignClassifier():
             probabilities = F.softmax(output, dim=1)
             probability, predicted = torch.max(probabilities.data, 1)
             # Append bounding box and predicted class
-            if probability > 0.5:
-                proposed_bboxes.append((x, y, x + w, y + h, predicted.item()))
-            else:
-                print("Maybe a false pos")
+            if probability>0.5:
+                scored_bboxes.append((x, y, x + w, y + h, predicted.item(), probability.item()))
+        
 
         # Step 3: Post processing of the classification to compute better prediction
         # Apply non-maximum suppression (NMS) to remove overlapping bounding boxes
-
+        
+        """proposed_bboxes = nms(scored_bboxes, threshold=0.1)
+        print(proposed_bboxes.shape)"""
+        
         # Step 4 : Visualize if asked
         if visualize:
-            plot_bbox_image(X, proposed_bboxes)
+            plot_bbox_image(X, scored_bboxes)
 
         return predictions

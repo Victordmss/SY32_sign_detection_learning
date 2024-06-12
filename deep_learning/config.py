@@ -3,7 +3,7 @@ import torchvision.transforms as transforms
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # Device 
-NB_EPOCHS = 50 # Number of epochs for training 
+NB_EPOCHS = 30 # Number of epochs for training 
 BATCH_SIZE = 20  # Size of the training batch
 TRAINING_IMAGE_FILE_PATH = "./data/train/images/"
 TRAINING_LABEL_FILE_PATH = "./data/train/labels/"

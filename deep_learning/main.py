@@ -12,7 +12,7 @@ clf.fit()
 clf.evaluate_classification()
 
 
-image_test = np.array(imread("./data/train/images/0005.jpg"))
+image_test = np.array(imread("./data/train/images/0069.jpg"))
 clf.predict(image_test, visualize=True)
 
 

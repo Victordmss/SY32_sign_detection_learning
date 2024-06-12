@@ -51,7 +51,7 @@ def load_dataset(image_dir, label_dir):
     # Initialize empty lists to store images (X) and labels (Y)
     X = []  
     Y = []  
-
+    
     for label_file in os.listdir(label_dir):
         label_path = os.path.join(label_dir, label_file)
         
@@ -86,7 +86,7 @@ def load_dataset(image_dir, label_dir):
                     
             else:
                 # If no bounding boxes are present, generate empty bounding boxes
-                for _ in range(3):
+                for _ in range(5):
                     box = list(generate_empty_bbox(image_width=image.size[1], image_height=image.size[0]))
                     
                     # Extract ROI from image based on empty bounding box
@@ -146,54 +146,68 @@ def iou(box1, box2):
 
     return iou
 
-# Function to calculate Non Maximum Suppression (NMS) 
-def non_maximum_suppression(bboxes, threshold=0.5):
-        """
-        Apply non-maximum suppression to filter overlapping bounding boxes
-        :param bboxes: List of proposed bounding boxes with their scores
-        :param threshold: IoU threshold for suppression
-        :return: List of final bounding boxes
-        """
-        if len(bboxes) == 0:
-            return []
-
-        # Extract the coordinates and scores
-        x1 = torch.tensor([bbox[0] for bbox in bboxes])
-        y1 = torch.tensor([bbox[1] for bbox in bboxes])
-        x2 = torch.tensor([bbox[2] for bbox in bboxes])
-        y2 = torch.tensor([bbox[3] for bbox in bboxes])
-        scores = torch.tensor([bbox[4] for bbox in bboxes])
-
-        # Compute the area of the bounding boxes and sort by score
-        areas = (x2 - x1 + 1) * (y2 - y1 + 1)
-        _, order = scores.sort(0, descending=True)
-
-        keep = []
-        while order.numel() > 0:
-            i = order[0]
-            keep.append(i.item())
-
-            if order.numel() == 1:
-                break
-
-            xx1 = x1[order[1:]].clamp(min=x1[i])
-            yy1 = y1[order[1:]].clamp(min=y1[i])
-            xx2 = x2[order[1:]].clamp(max=x2[i])
-            yy2 = y2[order[1:]].clamp(max=y2[i])
-
-            w = (xx2 - xx1 + 1).clamp(min=0)
-            h = (yy2 - yy1 + 1).clamp(min=0)
-
-            inter = w * h
-            ovr = inter / (areas[i] + areas[order[1:]] - inter)
-
-            # Keep only elements with an overlap less than the threshold
-            inds = (ovr <= threshold).nonzero(as_tuple=False).squeeze()
-            order = order[inds + 1]
-
-        final_bboxes = [bboxes[idx] for idx in keep]
-
-        return final_bboxes
+#NMS implementation in Python and Numpy
+def nms(bboxes, threshold=0.5):
+    '''
+    NMS: first sort the bboxes by scores , 
+        keep the bbox with highest score as reference,
+        iterate through all other bboxes, 
+        calculate Intersection Over Union (IOU) between reference bbox and other bbox
+        if iou is greater than threshold,then discard the bbox and continue.
+        
+    Input:
+        bboxes(numpy array of tuples) : Bounding Box Proposals in the format (x_min,y_min,x_max,y_max).
+        pscores(numpy array of floats) : confidance scores for each bbox in bboxes.
+        threshold(float): Overlapping threshold above which proposals will be discarded.
+        
+    Output:
+        filtered_bboxes(numpy array) :selected bboxes for which IOU is less than threshold. 
+    '''
+    #Unstacking Bounding Box Coordinates
+    bboxes = np.array(bboxes).astype('float')
+    x0 = bboxes[:,0]
+    y0 = bboxes[:,1]
+    x1 = bboxes[:,2]
+    y1 = bboxes[:,3]
+    scores = bboxes[:,5]
+    
+    #Sorting the pscores in descending order and keeping respective indices.
+    sorted_idx = scores.argsort()[::-1]
+    #Calculating areas of all bboxes.Adding 1 to the side values to avoid zero area bboxes.
+    bbox_areas = (x1-x0+1)*(y1-y0+1)
+    
+    #list to keep filtered bboxes.
+    filtered = []
+    while len(sorted_idx) > 0:
+        #Keeping highest pscore bbox as reference.
+        rbbox_i = sorted_idx[0]
+        #Appending the reference bbox index to filtered list.
+        filtered.append(rbbox_i)
+        
+        #Calculating (xmin,ymin,xmax,ymax) coordinates of all bboxes w.r.t to reference bbox
+        overlap_xmins = np.maximum(x0[rbbox_i],x0[sorted_idx[1:]])
+        overlap_ymins = np.maximum(y0[rbbox_i],y0[sorted_idx[1:]])
+        overlap_xmaxs = np.minimum(x1[rbbox_i],x1[sorted_idx[1:]])
+        overlap_ymaxs = np.minimum(y1[rbbox_i],y1[sorted_idx[1:]])
+        
+        #Calculating overlap bbox widths,heights and there by areas.
+        overlap_widths = np.maximum(0,(overlap_xmaxs-overlap_xmins+1))
+        overlap_heights = np.maximum(0,(overlap_ymaxs-overlap_ymins+1))
+        overlap_areas = overlap_widths*overlap_heights
+        
+        #Calculating IOUs for all bboxes except reference bbox
+        ious = overlap_areas/(bbox_areas[rbbox_i]+bbox_areas[sorted_idx[1:]]-overlap_areas)
+        
+        #select indices for which IOU is greather than threshold
+        delete_idx = np.where(ious > threshold)[0]+1
+        delete_idx = np.concatenate(([0],delete_idx))
+        
+        #delete the above indices
+        sorted_idx = np.delete(sorted_idx,delete_idx)
+        
+    
+    #Return filtered bboxes
+    return bboxes[filtered]
 
 # Function to plot images with bounding boxes and class labels 
 def plot_bbox_image(image, boxes):
@@ -219,8 +233,8 @@ def plot_bbox_image(image, boxes):
             class_pred = box[4]
         except:
             class_pred=1  # No classe (maybe because of selective search) set at 1 randomly
-            
-        if class_pred != CLASSE_TO_INT["empty"]:
+
+        if class_pred not in  [CLASSE_TO_INT["empty"]]:
             x = box[0] 
             y = box[1]
             width = box[2] - x
