@@ -1,18 +1,19 @@
-from deep_learning.signClassifier import SignClassifier, SignDataset
-from torch.utils.data import DataLoader
+from deep_learning.signClassifier import SignClassifier
 from deep_learning.config import *
 from utils.utils import *
-import torchvision
-import torchvision.transforms as transforms
+from skimage.io import imread
 
 # Create & train
 clf = SignClassifier()
+#clf.training_dataset.visualize_repartition()
 clf.fit()
 
-# Predict & test
-dataset = SignDataset(VAL_IMAGE_FILE_PATH, VAL_LABEL_FILE_PATH)
-validation_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-clf.predict(validation_loader)
+# Evaluate classification model
+clf.evaluate_classification()
+
+
+image_test = np.array(imread("./data/train/images/0005.jpg"))
+clf.predict(image_test, visualize=True)
 
 
 
