@@ -1,0 +1,1 @@
+print("Currently there is no main")
