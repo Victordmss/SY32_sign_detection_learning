@@ -67,8 +67,7 @@ def create_binary_classification_dataset(datas, key):
             # Concatenate ROI features
             roi_features = np.concatenate((hog_features, color_features))
 
-            class_label = CLASSE_TO_INT[label["name"]]
-            if class_label == CLASSE_TO_INT[key]:
+            if label["name"] == key:
                 X.append(roi_features)  # Add informations into X 
                 Y.append(1)  # "key" sign, classification value is 1
             else:
