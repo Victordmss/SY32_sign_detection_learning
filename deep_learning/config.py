@@ -2,6 +2,7 @@ import torch
 import torchvision.transforms as transforms
 
 
+RESIZE_SIZE = (32, 32)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # Device 
 NB_EPOCHS = 30 # Number of epochs for training 
 BATCH_SIZE = 20  # Size of the training batch

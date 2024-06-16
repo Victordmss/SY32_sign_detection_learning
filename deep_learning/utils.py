@@ -1,7 +1,72 @@
 import numpy as np
-from utils.utils import plot_bbox_image, INT_TO_CLASSE
+import os 
 import matplotlib.pyplot as plt
-from utils.utils import selective_search
+from PIL import Image
+
+from utils.utils import *
+from utils.utils import *
+from deep_learning.config import *
+from utils.utils import *
+
+# Function to load the dataset into data dict
+def datas_to_XY_dataset(image_dir, label_dir):
+    # Initialize empty lists to store images (X) and labels (Y)
+    X = []  
+    Y = []  
+    
+    for label_file in os.listdir(label_dir):
+        label_path = os.path.join(label_dir, label_file)
+        
+        file_name = int(label_file.split('.')[0])  # Extract the file name to find corresponding image file
+
+        try:
+            image_path = os.path.join(image_dir, str(file_name).zfill(4) + ".jpg")            
+            image = Image.open(image_path).convert("RGB")  # Open the image
+
+            # Read bounding boxes from the label file
+            with open(label_path, "r") as file:
+                reader = csv.reader(file)
+                bboxes = list(reader)
+
+            # Check if there are any bounding boxes in the label file
+            if bboxes != [[]]: 
+                # Iterate over each bounding box
+                for box in bboxes:
+                    # Convert class label from string to integer using CLASSE_TO_INT dictionary
+                    box[4] = CLASSE_TO_INT[box[4]]
+                    # Convert all elements in the bounding box to integers
+                    box[:] = map(int, box)
+                    
+                    # Extract Region of Interest (ROI) from the image based on the bounding box
+                    roi = image.crop((box[0], box[1], box[2], box[3]))  
+                    # Resize the ROI to a predefined average size
+                    roi_resized = roi.resize(RESIZE_SIZE)
+                    
+                    # Append the resized ROI to X and its corresponding class label to Y
+                    X.append(np.array(roi_resized))
+                    Y.append(box[4])
+                    
+            else:
+                # If no bounding boxes are present, generate empty bounding boxes
+                for _ in range(5):
+                    box = list(generate_empty_bbox(image_width=image.size[1], image_height=image.size[0]))
+                    
+                    # Extract ROI from image based on empty bounding box
+                    roi = image.crop((box[0], box[1], box[2], box[3]))  
+                    # Resize the ROI to a predefined average size
+                    roi_resized = roi.resize(RESIZE_SIZE)
+                    
+                    # Append the resized ROI to X and the class label for empty to Y
+                    X.append(np.array(roi_resized))
+                    Y.append(CLASSE_TO_INT["empty"])
+
+        except FileNotFoundError:
+            print(f"Image file not found for {file_name}")
+        except Exception as e:
+            print(f"Error when processing index {file_name}: {e}")
+
+    # Convert the lists X and Y to numpy arrays and return them
+    return np.array(X), np.array(Y)
 
 def compute_dataset_repartition(loader):
     # Dictionnaire pour compter le nombre d'occurrences de chaque classe

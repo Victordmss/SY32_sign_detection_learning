@@ -257,6 +257,7 @@ X_val_obligation, Y_val_obligation = extract_hog_features_obligation(datas_val)
 
 X_train_ceder, Y_train_ceder = extract_hog_features_ceder(datas_train)
 X_val_ceder, Y_val_ceder = extract_hog_features_ceder(datas_val)
+
 """
 X_train_frouge, Y_train_frouge = extract_hog_features_frouge(datas_train)
 X_val_frouge, Y_val_frouge = extract_hog_features_frouge(datas_val)
@@ -267,6 +268,7 @@ X_val_forange, Y_val_forange = extract_hog_features_forange(datas_val)
 X_train_fvert, Y_train_fvert = extract_hog_features_fvert(datas_train)
 X_val_fvert, Y_val_fvert = extract_hog_features_fvert(datas_val)
 """
+
 X_train_feu, Y_train_feu = extract_hog_features_feu(datas_train)
 X_val_feu, Y_val_feu = extract_hog_features_feu(datas_val)
 
@@ -342,6 +344,7 @@ print(f"Taux d'erreur SVM pour panneaux fvert: {np.mean(y_pred != Y_val_fvert)}"
 # Feu
 clf_feu = svm.SVC(kernel='poly')
 clf_feu.fit(X_train_feu, Y_train_feu)
+
 ####################################################################################
 ####################################################################################
 # Fonction pour faire glisser une fenêtre sur l'image
@@ -469,8 +472,7 @@ for filename in os.listdir(test_image_folder):
         stop=stop+1
     output_path = os.path.join(output_folder_stop, filename)
     io.imsave(output_path, test_image)
-    print(f"Processed and saved: {filename}")
-    
+    print(f"Processed and saved: {filename}")  
     
 for filename in os.listdir(test_image_folder):
     test_image_path = os.path.join(test_image_folder, filename)
@@ -658,8 +660,7 @@ for filename in os.listdir(test_image_folder):
         ceder=ceder+1
     output_path = os.path.join(output_folder_ceder, filename)
     io.imsave(output_path, test_image)
-    print(f"Processed and saved: {filename}")
-    
+    print(f"Processed and saved: {filename}")    
     
 for filename in os.listdir(test_image_folder):
     test_image_path = os.path.join(test_image_folder, filename)

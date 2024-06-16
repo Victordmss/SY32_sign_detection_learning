@@ -20,7 +20,7 @@ from skimage.transform import pyramid_gaussian
 from sklearn.cluster import DBSCAN
 import matplotlib.pyplot as plt
 
-AVERAGE_SIZE_IMAGE = (127, 145)
+"""AVERAGE_SIZE_IMAGE = (127, 145)
 
 # Utilitaire pour générer une bbox vide pour les images sans label
 def generate_empty_bbox(image_width, image_height):
@@ -80,183 +80,30 @@ name_to_int = {
     "ff": 8,
     "empty": 9
 }
-
+"""
 
 ######################################################################################
 ######################################################################################
 # Création des caractéristiques HOG pour la détection
 
-def regions_to_vectors_stop(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["stop"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Panneau stop
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-stop (autres classes)
-
-    return np.array(X), np.array(Y)
-
-def regions_to_vectors_danger(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["danger"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Panneau danger
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-danger (autres classes)
-
-    return np.array(X), np.array(Y)
-
-def regions_to_vectors_interdiction(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["interdiction"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Panneau interdiction
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-interdiction (autres classes)
-
-    return np.array(X), np.array(Y)
-
-def regions_to_vectors_obligation(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["obligation"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Panneau obligation
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-obligation (autres classes)
-
-    return np.array(X), np.array(Y)
-
-def regions_to_vectors_ceder(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["ceder"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Panneau ceder
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-ceder (autres classes)
-
-    return np.array(X), np.array(Y)
-
-def regions_to_vectors_feu(datas):
-    X = []
-    Y = []
-
-    for name, data in datas.items():
-        image = data["img"]
-        labels = data["labels"]
-
-        for label in labels.values():
-            region = label["img"]  # Récupérer la région labellisée
-            # Appliquer un prétraitement si nécessaire (redimensionnement, mise à l'échelle, etc.)
-            hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-            
-            class_label = name_to_int[label["name"]]
-            if class_label == name_to_int["frouge"] or class_label == name_to_int["forange"] or class_label == name_to_int["fvert"]:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(1)  # Feu
-            else:
-                X.append(hog_features)  # Ajouter les caractéristiques HOG
-                Y.append(0)  # Non-feu (autres classes)
-
-    return np.array(X), np.array(Y)
 
 
 ######################################################################################
 ######################################################################################
-# Entraînement du modèle SVM avec les caractéristiques HOG
+"""# Entraînement du modèle SVM avec les caractéristiques HOG
 datas_train = load_data("dataset-main-train/train/images", "dataset-main-train/train/labels")
 datas_val = load_data("dataset-main-val/val/images", "dataset-main-val/val/labels")
-
-# Dossier contenant les images d'évaluation
+"""
+"""# Dossier contenant les images d'évaluation
 test_image_folder = 'dataset-main-val/val/images'
 output_folder_stop = 'result_detection_v2_stop'
 output_folder_danger = 'result_detection_v2_danger'
 output_folder_interdiction = 'result_detection_v2_interdiction'
 output_folder_obligation = 'result_detection_v2_obligation'
 output_folder_ceder = 'result_detection_v2_ceder'
-output_folder_feu = 'result_detection_v2_feu'
+output_folder_feu = 'result_detection_v2_feu'"""
 
-X_train_stop, Y_train_stop = regions_to_vectors_stop(datas_train)
-X_val_stop, Y_val_stop = regions_to_vectors_stop(datas_val)
 
-X_train_danger, Y_train_danger = regions_to_vectors_danger(datas_train)
-X_val_danger, Y_val_danger = regions_to_vectors_danger(datas_val)
-
-X_train_interdiction, Y_train_interdiction = regions_to_vectors_interdiction(datas_train)
-X_val_interdiction, Y_val_interdiction = regions_to_vectors_interdiction(datas_val)
-
-X_train_obligation, Y_train_obligation = regions_to_vectors_obligation(datas_train)
-X_val_obligation, Y_val_obligation = regions_to_vectors_obligation(datas_val)
-
-X_train_ceder, Y_train_ceder = regions_to_vectors_ceder(datas_train)
-X_val_ceder, Y_val_ceder = regions_to_vectors_ceder(datas_val)
-
-X_train_feu, Y_train_feu = regions_to_vectors_feu(datas_train)
-X_val_feu, Y_val_feu = regions_to_vectors_feu(datas_val)
 ######################################################################################
 ######################################################################################
 # Créer et entraîner le classifieur SVM pour les panneaux stop
@@ -357,7 +204,6 @@ if not os.path.exists(output_folder_ceder):
 if not os.path.exists(output_folder_feu):
     os.makedirs(output_folder_feu)
 
-
 ######################################################################################
 ######################################################################################
 #Fonction prediction?
@@ -372,7 +218,8 @@ def prediction(hog_features):
     if clf_obligation.predict(hog_features)==1:
         return "obligation"
 """
-######################################################################################
+
+
 ######################################################################################
 ######################################################################################
 #Detection et classification
@@ -383,13 +230,8 @@ danger=0
 interdiction=0
 obligation=0
 ceder=0
-
 feu=0
-
-
-
-    
-    
+      
 for filename in os.listdir(test_image_folder):
     test_image_path = os.path.join(test_image_folder, filename)
     test_image = io.imread(test_image_path)
@@ -436,7 +278,6 @@ for filename in os.listdir(test_image_folder):
     output_path = os.path.join(output_folder_stop, filename)
     io.imsave(output_path, test_image)
     print(f"Processed and saved: {filename}")
-    
     
 for filename in os.listdir(test_image_folder):
     test_image_path = os.path.join(test_image_folder, filename)
@@ -625,8 +466,7 @@ for filename in os.listdir(test_image_folder):
     output_path = os.path.join(output_folder_ceder, filename)
     io.imsave(output_path, test_image)
     print(f"Processed and saved: {filename}")
-    
-    
+     
 for filename in os.listdir(test_image_folder):
     test_image_path = os.path.join(test_image_folder, filename)
     test_image = io.imread(test_image_path)
@@ -674,9 +514,6 @@ for filename in os.listdir(test_image_folder):
     io.imsave(output_path, test_image)
     print(f"Processed and saved: {filename}")
 
-
-
-    
 print("Panneaux stop détectés :", stop)
 print("Panneaux danger détectés :", danger)
 print("Panneaux interdiction détectés :", interdiction)

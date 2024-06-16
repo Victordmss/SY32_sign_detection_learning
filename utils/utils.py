@@ -5,12 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches 
 import cv2
 import random
-import os
-from PIL import Image
-import csv
-import torch
 
-AVERAGE_SIZE = (32, 32)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
+AVERAGE_SIZE = (127, 145)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
 
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
@@ -45,68 +41,6 @@ CLASSES = ["danger", "interdiction", "obligation", "stop", "ceder", "frouge", "f
 
 # Number of classes
 NB_CLASSES = len(CLASSES)
-
-
-def load_dataset(image_dir, label_dir):
-    # Initialize empty lists to store images (X) and labels (Y)
-    X = []  
-    Y = []  
-    
-    for label_file in os.listdir(label_dir):
-        label_path = os.path.join(label_dir, label_file)
-        
-        file_name = int(label_file.split('.')[0])  # Extract the file name to find corresponding image file
-
-        try:
-            image_path = os.path.join(image_dir, str(file_name).zfill(4) + ".jpg")            
-            image = Image.open(image_path).convert("RGB")  # Open the image
-
-            # Read bounding boxes from the label file
-            with open(label_path, "r") as file:
-                reader = csv.reader(file)
-                bboxes = list(reader)
-
-            # Check if there are any bounding boxes in the label file
-            if bboxes != [[]]: 
-                # Iterate over each bounding box
-                for box in bboxes:
-                    # Convert class label from string to integer using CLASSE_TO_INT dictionary
-                    box[4] = CLASSE_TO_INT[box[4]]
-                    # Convert all elements in the bounding box to integers
-                    box[:] = map(int, box)
-                    
-                    # Extract Region of Interest (ROI) from the image based on the bounding box
-                    roi = image.crop((box[0], box[1], box[2], box[3]))  
-                    # Resize the ROI to a predefined average size
-                    roi_resized = roi.resize(AVERAGE_SIZE)
-                    
-                    # Append the resized ROI to X and its corresponding class label to Y
-                    X.append(np.array(roi_resized))
-                    Y.append(box[4])
-                    
-            else:
-                # If no bounding boxes are present, generate empty bounding boxes
-                for _ in range(5):
-                    box = list(generate_empty_bbox(image_width=image.size[1], image_height=image.size[0]))
-                    
-                    # Extract ROI from image based on empty bounding box
-                    roi = image.crop((box[0], box[1], box[2], box[3]))  
-                    # Resize the ROI to a predefined average size
-                    roi_resized = roi.resize(AVERAGE_SIZE)
-                    
-                    # Append the resized ROI to X and the class label for empty to Y
-                    X.append(np.array(roi_resized))
-                    Y.append(CLASSE_TO_INT["empty"])
-
-        except FileNotFoundError:
-            print(f"Image file not found for {file_name}")
-        except Exception as e:
-            print(f"Error when processing index {file_name}: {e}")
-
-    # Convert the lists X and Y to numpy arrays and return them
-    return np.array(X), np.array(Y)
-
-
 
 # Function to calculate Intersection over Union (IoU) 
 def iou(box1, box2):
@@ -264,7 +198,7 @@ def plot_bbox_image(image, boxes):
     # Display the plot 
     plt.show()
 
-
+# Function to process a selective search on an image
 def selective_search(image, visualize=False, visulize_count=100):
     # Convert image to BGR format for OpenCV
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
@@ -292,7 +226,6 @@ def selective_search(image, visualize=False, visulize_count=100):
         plt.show()
 
     return roi
-
 
 #  Generate an empty box for images without label
 def generate_empty_bbox(image_width, image_height):

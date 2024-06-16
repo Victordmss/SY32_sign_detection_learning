@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
 from deep_learning.config import *
+from deep_learning.utils import *
 from utils.utils import *
 from torch import tensor
 from skimage.util import img_as_float32
@@ -12,7 +13,7 @@ import torch.nn.functional as F
 class ClassificationDataset(Dataset): 
     def __init__(self, image_dir, label_dir):         
         # Image and label directories 
-        self.X, self.y = load_dataset(image_dir, label_dir)
+        self.X, self.y = datas_to_XY_dataset(image_dir, label_dir)
         self.image_dir = image_dir 
         self.label_dir = label_dir 
         self.transform = TRANFORMATIONS

@@ -5,7 +5,7 @@ Cette sous partie du projet vise à développer un système de détection de pan
 ## Structure du Projet
 
 - `machine_learning/` : Répertoire principal du projet contenant le code source pour l'apprentissage du modèle et la détection des panneaux.
-    - `classifiers/` : Répertoire comprenant une liste de notebook de tests de différents classifiers ainsi qu'un fichier concaténant les résultats
+    - `classifiers/` : Répertoire comprenant une liste de notebook de tests de différents classifieurs 
     - `main.py` : Point d'entrée pour lancer le programme.
     - `config.py` : Fichier de configuration.
 
