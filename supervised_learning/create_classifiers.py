@@ -8,8 +8,8 @@ from joblib import dump
 
 # ------------- LOAD DATAS -----------------
 print("Loading datas...")
-datas_train = import_datas_into_dict(TRAINING_IMAGE_FILE_PATH, TRAINING_LABEL_FILE_PATH)
-datas_val = import_datas_into_dict(VAL_IMAGE_FILE_PATH, VAL_LABEL_FILE_PATH)
+datas_train = import_datas_into_dict(TRAINING_IMAGE_FOLDER_PATH, TRAINING_LABEL_FOLDER_PATH)
+datas_val = import_datas_into_dict(VAL_IMAGE_FOLDER_PATH, VAL_LABEL_FOLDER_PATH)
 
 # Dict format to store train & val datasets for each labels & classifiers
 datasets = {
@@ -108,7 +108,7 @@ classifiers = {
 print("Creating classifiers...")
 for classe in CLASSES:
     if classe not in ['ff', 'empty']:
-        classifiers[classe] = svm.SVC(kernel='poly')
+        classifiers[classe] = svm.SVC(kernel='poly', probability=True)
 
 
 # ------------- TRAIN & TEST CLASSIFIERS -----------------
