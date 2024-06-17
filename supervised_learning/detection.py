@@ -80,11 +80,36 @@ for image in X:
             
             # Concatenate ROI features
             roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
-            if classifiers["ceder"].predict(roi_features)[0] == 1:
-                print(classifiers["ceder"].predict_proba(roi_features))
+            
+            probas = {
+                "danger" : None, 
+                "interdiction": None,
+                "obligation": None, 
+                "stop": None,
+                "ceder": None, 
+                "frouge": None, 
+                "forange": None, 
+                "fvert": None
+            }
+
+            for classe, classifier in classifiers.items():
+                proba = classifier.predict_proba(roi_features)[0][1]
+                if proba > 0.6:
+                    probas[classe] = proba
+                else:
+                    probas[classe] = 0
+            
+            max_proba = 0
+            max_classe = "empty"
+            for classe, proba in probas.items():
+                if proba > max_proba:
+                    max_proba = proba
+                    max_classe = classe
+            
+            if max_classe not in ["empty", "frouge", "fvert", "forange"]:
                 plt.imshow(window)
                 plt.show()
-                
+                print(max_classe)
 
 # TO DO : NMS + FAUX NEGATIS TRAINING
 
