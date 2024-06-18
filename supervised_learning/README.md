@@ -25,6 +25,6 @@ python -m supervised_learning.create_classifiers
 Pour exécuter le programme et lancer la détection de panneaux de signalisation, utilisez la commande suivante depuis la racine du projet :
 
 ```bash
-python -m supervised_learning.main
+python -m supervised_learning.detection INPUT_IMAGES_FOLDER OUTPUT_LABEL_FOLDER
 ```
 
