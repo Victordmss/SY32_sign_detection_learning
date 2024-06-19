@@ -79,7 +79,20 @@ datasets = {
         "fvert": {
             "X" : [],
             "Y": []
-        }, 
+        },
+         
+    },
+    "feux_train": {
+         "feux": {
+              "X":[],
+              "Y":[]
+         },
+    },
+    "feux_val": {
+         "feux": {
+              "X":[],
+              "Y":[]
+         },
     }   
 }
 
@@ -91,6 +104,9 @@ for classe in CLASSES:
     if classe not in ['ff', 'empty']:
         datasets["train"][classe]["X"], datasets["train"][classe]["Y"] = create_binary_classification_dataset(datas_train, classe)
         datasets["val"][classe]["X"], datasets["val"][classe]["Y"] = create_binary_classification_dataset(datas_val, classe)
+        
+        datasets["feux_train"]["feux"]["X"], datasets["feux_train"]["feux"]["Y"] = create_binary_classification_dataset_feux(datas_train)
+        datasets["feux_val"]["feux"]["X"], datasets["feux_val"]["feux"]["Y"] = create_binary_classification_dataset_feux(datas_val)
 
 # Dict format to store all classifiers
 classifiers = {
@@ -101,7 +117,8 @@ classifiers = {
     "ceder": None, 
     "frouge": None, 
     "forange": None, 
-    "fvert": None
+    "fvert": None,
+    "feux" : None,
 }
 
 # ------------- CREATE CLASSIFIERS -----------------
@@ -109,17 +126,23 @@ print("Creating classifiers...")
 for classe in CLASSES:
     if classe not in ['ff', 'empty']:
         classifiers[classe] = svm.SVC(kernel='poly', probability=True)
-
+classifiers['feux'] = svm.SVC(kernel='poly', probability=True)
 
 # ------------- TRAIN & TEST CLASSIFIERS -----------------
 print("Train and testing all classifiers...")
 for classe in CLASSES:
-    if classe not in ['ff', 'empty']:
+    if classe not in ['ff', 'empty','feux']:
         X_train, y_train = datasets['train'][classe]["X"], datasets['train'][classe]["Y"]
         X_val, y_val = datasets['val'][classe]["X"], datasets['val'][classe]["Y"]
         classifiers[classe].fit(X_train, y_train)
         y_pred = classifiers[classe].predict(X_val)
         print(f"Précision pour panneaux {classe}: {np.mean(y_pred == y_val)}")
+
+X_train, y_train =  datasets["feux_train"]["feux"]["X"], datasets["feux_train"]["feux"]["Y"]
+X_val, y_val = datasets["feux_val"]["feux"]["X"], datasets["feux_val"]["feux"]["Y"]
+classifiers['feux'].fit(X_train, y_train)
+y_feu = classifiers['feux'].predict(X_val)
+print(f"Précision pour panneaux feux: {np.mean(y_feu == y_val)}")
 
 
 # ------------- SAVE CLASSIFIERS -----------------

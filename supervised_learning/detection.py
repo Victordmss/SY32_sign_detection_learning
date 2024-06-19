@@ -13,6 +13,7 @@ parser.add_argument('output_folder', metavar='DIR', help='Folder of output label
 # Analyser les arguments de la ligne de commande
 args = parser.parse_args()
 
+
 # Load input folder
 input_folder = args.input_folder
 # Check if input folder exists
@@ -39,7 +40,8 @@ classifiers = {
     "ceder": None, 
     "frouge": None, 
     "forange": None, 
-    "fvert": None
+    "fvert": None,
+    "feux":None
 }
 
 # Parse dict and load all classifiers
@@ -77,7 +79,7 @@ for filepath, image in X.items():
 
     # Filter rois with Non Maximum Suppression process
     rois = non_max_suppression(rois, iou_threshold=0.1)     
-    #display_rois(image, rois)
+    #display_rois(image, rois)  -- UNCOMMENT TO DISPLAY
 
     # Write preticted labels into prediction files
     prediction_file_path = os.path.join(output_folder, f"{name}.csv")
