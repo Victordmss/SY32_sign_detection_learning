@@ -87,7 +87,7 @@ def extract_rois_from_image(image, classifiers_dict):
             if window.shape[0] != AVERAGE_SIZE[1] or window.shape[1] != AVERAGE_SIZE[0]:
                 continue
             
-              # HOG features
+            # HOG features
             hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
         
             # HUE features            
@@ -214,10 +214,7 @@ def non_max_suppression(rois, iou_threshold=0.1):
     return rois[keep].tolist()
 
 # Function that allows to display multiples rois on an image
-def display_rois(image, rois):
-    # Convert the image to RGB (from BGR, which is the format used by cv2)
-    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
+def display_rois(image, rois):    
     # Draw rectangles around the ROIs
     for roi in rois:
         x0 = int(roi[0])
@@ -226,13 +223,48 @@ def display_rois(image, rois):
         y1 = int(roi[3])
         classe = str(roi[4])
         proba = float(roi[5])
-        cv2.rectangle(image_rgb, (x0, y0), (x1, y1), (0, 255, 0), 2)
+        cv2.rectangle(image, (x0, y0), (x1, y1), (0, 255, 0), 2)
         label = f"{classe}: {proba:.2f}"
-        cv2.putText(image_rgb, label, (x0, y0 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        cv2.putText(image, label, (x0, y0 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
     
     # Display the image with the ROIs
     plt.figure(figsize=(12, 8))
-    plt.imshow(image_rgb)
+    plt.imshow(image)
     plt.axis('off')
     plt.show()
     
+# Function that compute Union on Intersection value betwen 2 bbox
+def calculate_iou(bbox1, bbox2):
+    """
+    Calcule l'Intersection over Union (IoU) entre deux boîtes englobantes.
+
+    Arguments :
+    bbox1, bbox2 -- listes ou tuples de format [x0, y0, x1, y1]
+
+    Retourne :
+    iou -- Intersection over Union (IoU) en tant que flottant
+    """
+
+    # Coordonnées de l'intersection rectangle
+    x_left = max(bbox1[0], bbox2[0])
+    y_top = max(bbox1[1], bbox2[1])
+    x_right = min(bbox1[2], bbox2[2])
+    y_bottom = min(bbox1[3], bbox2[3])
+
+    # Calculer l'aire de l'intersection
+    if x_right < x_left or y_bottom < y_top:
+        return 0.0  # Pas d'intersection
+
+    intersection_area = (x_right - x_left) * (y_bottom - y_top)
+
+    # Aires des boîtes englobantes
+    bbox1_area = (bbox1[2] - bbox1[0]) * (bbox1[3] - bbox1[1])
+    bbox2_area = (bbox2[2] - bbox2[0]) * (bbox2[3] - bbox2[1])
+
+    # Aire de l'union
+    union_area = bbox1_area + bbox2_area - intersection_area
+
+    # Calcul de l'IoU
+    iou = intersection_area / union_area
+
+    return iou
