@@ -30,5 +30,5 @@ python -m supervised_learning.detection INPUT_IMAGES_FOLDER OUTPUT_LABEL_FOLDER
 Pour voir 10 résultats aléatoires de la prédiction, utilisez la commande suivante depuis la racine du projet :
 
 ```bash
-python -m supervised_learning.detection INPUT_IMAGES_FOLDER OUTPUT_LABEL_FOLDER
+python -m supervised_learning.vue INPUT_IMAGES_FOLDER OUTPUT_LABEL_FOLDER
 ```
