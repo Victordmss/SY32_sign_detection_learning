@@ -231,3 +231,18 @@ def calculate_iou(bbox1, bbox2):
     iou = intersection_area / union_area
 
     return iou
+
+# Function that process a selective search on the current image
+def selective_search(image):
+    regions = []
+    
+    segments = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
+    segments.setBaseImage(image)
+    segments.switchToSelectiveSearchFast() 
+
+    rects = segments.process()
+
+    for (x, y, w, h) in rects:
+        regions.append((x, y, x + w, y + h))  
+    
+    return regions
