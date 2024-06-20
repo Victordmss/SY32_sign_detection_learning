@@ -40,8 +40,7 @@ classifiers = {
     "ceder": None, 
     "frouge": None, 
     "forange": None, 
-    "fvert": None,
-    "feux":None
+    "fvert": None
 }
 
 # Parse dict and load all classifiers
@@ -79,7 +78,7 @@ for filepath, image in X.items():
 
     # Filter rois with Non Maximum Suppression process
     rois = non_max_suppression(rois, iou_threshold=0.1)     
-    #display_rois(image, rois)  -- UNCOMMENT TO DISPLAY
+    #display_rois(image, rois)  #-- UNCOMMENT TO DISPLAY
 
     # Write preticted labels into prediction files
     prediction_file_path = os.path.join(output_folder, f"{name}.csv")
