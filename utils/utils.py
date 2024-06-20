@@ -9,7 +9,7 @@ import random
 AVERAGE_SIZE = (100, 100)  # Computed with statistics
 WINDOW_SIZE_SIGN = (64, 64)
 WINDOW_SIZE_LIGHT = (43, 100)
-
+AREA_THRESHOLD = 300  # 0.05 quantile for all the areas of the training dataset, prevent to classificate too little sign/light
  
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
