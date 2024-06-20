@@ -71,6 +71,7 @@ class SignNet(nn.Module):
         out = self.fc2(out)
         return out
 
+
 class SignClassifier():
     def __init__(self):
         self.net = SignNet(NB_CLASSES)
