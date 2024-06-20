@@ -23,7 +23,7 @@ def import_datas_into_dict(image_dir, label_dir):
             if rows == ['\n']:
                 for i in range(5):
                     xmin, ymin, xmax, ymax = generate_empty_bbox(image.shape[1], image.shape[0])
-                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE_SIGN))
+                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE))
                     label_data[i] = {
                         "name": "empty",
                         "coord": (xmin, ymin, xmax, ymax),
@@ -34,7 +34,7 @@ def import_datas_into_dict(image_dir, label_dir):
                     row = row.strip().split(",")
                     xmin, ymin, xmax, ymax = map(int, row[0:4])
                     class_name = row[4]
-                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE_SIGN))
+                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE))
                     label_data[i] = {
                         "name": class_name,
                         "coord": (xmin, ymin, xmax, ymax),
@@ -93,71 +93,15 @@ def create_binary_classification_dataset(datas, key):
 
     return np.array(X), np.array(Y)
 
-# Function to extract all regions of interest from an image
-def extract_rois_from_image(image, classifiers_dict):
-    rois = []
-    # Loop over the image pyramid
-    for resized, scale  in pyramid(image):
-        # Loop over the sliding window for each layer of the pyramid
-        for (x, y, window) in sliding_window(resized, step_size=STEP_SIZE):
-            # If the window does not meet our desired window size, ignore it
-            if window.shape[0] != WINDOW_SIZE[1] or window.shape[1] != WINDOW_SIZE[0]:
-                continue
-            
-            window = np.array(Image.fromarray(window).resize(AVERAGE_SIZE_SIGN))
-
-            # HOG features
-            hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-        
-            # HUE features            
-            color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
-            
-            # Concatenate ROI features
-            roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
-            
-            probas = {
-                "danger" : None, 
-                "interdiction": None,
-                "obligation": None, 
-                "stop": None,
-                "ceder": None, 
-                "frouge": None, 
-                "forange": None, 
-                "fvert": None
-            }
-
-            for classe, classifier in classifiers_dict.items():
-                proba = classifier.predict_proba(roi_features)[0][1]
-                if proba > 0.7:
-                    probas[classe] = proba
-                else:
-                    probas[classe] = 0
-            
-            max_proba = 0
-            max_classe = "empty"
-            for classe, proba in probas.items():
-                if proba > max_proba:
-                    max_proba = proba
-                    max_classe = classe
-            
-            
-            if max_classe not in ["empty", "frouge", "fvert", "forange"]:
-                x0 = int(x * scale)
-                y0 = int(y * scale)
-                x1 = int((x + WINDOW_SIZE[0]) * scale)
-                y1 = int((y + WINDOW_SIZE[1]) * scale)
-                rois.append([x0, y0, x1, y1, max_classe, max_proba])               
-    return rois
-
 # Function to compute a slidding window process
-def sliding_window(image, step_size=STEP_SIZE, window_size=WINDOW_SIZE):
+def sliding_window(image, step_size, window_size):
     # Slide a window across the image
     for y in range(0, image.shape[0] - window_size[1], step_size):
         for x in range(0, image.shape[1] - window_size[0], step_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
 
 # Function to change scale of the image to compute dynamic slidding window process
-def pyramid(image, scale=1.5, min_size=(30, 30)):
+def pyramid(image, scale=2, min_size=(30, 30)):
     # Yield the original image
     yield image, 1
     

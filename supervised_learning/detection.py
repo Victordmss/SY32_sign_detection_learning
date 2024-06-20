@@ -70,14 +70,111 @@ with open(output_file, "w") as f:
         # Start detection process
         print(f"[DETECTION] Processing image {name}")
 
-        # Extract rois from images with dynamic sliding window process
-        rois = extract_rois_from_image(image, classifiers)
+        # 1. Extract rois from images with dynamic sliding window process
+        rois = []
 
-        # Filter rois with Non Maximum Suppression process
+        # 1.1 Sign slidding window
+        for resized, scale  in pyramid(image):
+            # Loop over the sliding window for each layer of the pyramid
+            for (x, y, window) in sliding_window(resized, STEP_SIZE, WINDOW_SIZE_SIGN):
+                # If the window does not meet our desired window size, ignore it
+                if window.shape[0] != WINDOW_SIZE_SIGN[1] or window.shape[1] != WINDOW_SIZE_SIGN[0]:
+                    continue
+                
+                window = np.array(Image.fromarray(window).resize(AVERAGE_SIZE))
+
+                # HOG features
+                hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
+            
+                # HUE features            
+                color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
+                
+                # Concatenate ROI features
+                roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
+                
+                probas = {
+                    "danger" : None, 
+                    "interdiction": None,
+                    "obligation": None, 
+                    "stop": None,
+                    "ceder": None, 
+                }
+
+                for classe, classifier in classifiers.items():
+                    if classe not in ["feux", "fvert", "frouge", "forange"]:
+                        proba = classifier.predict_proba(roi_features)[0][1]
+                        if proba > 0.7:
+                            probas[classe] = proba
+                        else:
+                            probas[classe] = 0
+                
+                max_proba = 0
+                max_classe = "empty"
+                for classe, proba in probas.items():
+                    if proba > max_proba:
+                        max_proba = proba
+                        max_classe = classe
+                
+                
+                if max_classe not in ["empty", "frouge", "fvert", "forange"]:
+                    x0 = int(x * scale)
+                    y0 = int(y * scale)
+                    x1 = int((x + WINDOW_SIZE_SIGN[0]) * scale)
+                    y1 = int((y + WINDOW_SIZE_SIGN[1]) * scale)
+                    rois.append([x0, y0, x1, y1, max_classe, max_proba])             
+
+        # 1.2 Lights slidding window 
+        for resized, scale  in pyramid(image):
+            # Loop over the sliding window for each layer of the pyramid
+            for (x, y, window) in sliding_window(resized, STEP_SIZE, WINDOW_SIZE_LIGHT):
+                # If the window does not meet our desired window size, ignore it
+                if window.shape[0] != WINDOW_SIZE_LIGHT[1] or window.shape[1] != WINDOW_SIZE_LIGHT[0]:
+                    continue
+                
+                window = np.array(Image.fromarray(window).resize(AVERAGE_SIZE))
+
+                # HOG features
+                hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
+            
+                # HUE features            
+                color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
+                
+                # Concatenate ROI features
+                roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
+
+                # Classificate if there is a light
+                proba = classifiers["feux"].predict_proba(roi_features)[0][1]
+                if proba > 0.95:
+                    x0 = int(x * scale)
+                    y0 = int(y * scale)
+                    x1 = int((x + WINDOW_SIZE_LIGHT[0]) * scale)
+                    y1 = int((y + WINDOW_SIZE_LIGHT[1]) * scale)
+                    rois.append([x0, y0, x1, y1, "feux", proba])   
+
+                    # 1.3.3 Classificate the color of the lights 
+                    """for classe, classifier in classifiers.items():
+                        if classe in ["fvert", "frouge", "forange"]:
+                            proba = classifier.predict_proba(roi_features)[0][1]
+                            if proba > 0.7:
+                                probas[classe] = proba
+                            else:
+                                probas[classe] = 0
+                    
+                            max_proba = 0
+                            max_classe = "empty"
+                            for classe, proba in probas.items():
+                                if proba > max_proba:
+                                    max_proba = proba
+                                    max_classe = classe
+                    if max_proba != "empty":
+                        rois.append([x0, y0, x1, y1, max_classe, proba])"""
+
+
+        # 2. Filter rois with Non Maximum Suppression process
         rois = non_max_suppression(rois, iou_threshold=0.1)     
         #display_rois(image, rois)
 
-        # Write predicted labels into prediction files
+        # 3. Write predicted labels into prediction files
         for roi in rois:
             x0, y0, x1, y1, classe, score = roi
             row = f"{name}, {x0},{y0},{x1},{y1},{score},{classe}\n"

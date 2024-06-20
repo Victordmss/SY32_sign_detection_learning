@@ -6,10 +6,11 @@ import matplotlib.patches as patches
 import cv2
 import random
 
-AVERAGE_SIZE_SIGN = (100, 100)  # Computed with statistics
-AVERAGE_SIZE_LIGHT = (43, 100)   # Computed with statistics
-WINDOW_SIZE = (64, 64)
+AVERAGE_SIZE = (100, 100)  # Computed with statistics
+WINDOW_SIZE_SIGN = (64, 64)
+WINDOW_SIZE_LIGHT = (43, 100)
 
+ 
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
     "danger": 0,

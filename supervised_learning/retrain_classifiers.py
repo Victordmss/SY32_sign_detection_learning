@@ -171,7 +171,7 @@ datasets = {
 
 for name, labels in new_training_labels.items():
     for label in labels:
-            region = np.array(Image.fromarray(images[name][label[1]:label[3], label[0]:label[2]]).resize(AVERAGE_SIZE_SIGN))
+            region = np.array(Image.fromarray(images[name][label[1]:label[3], label[0]:label[2]]).resize(AVERAGE_SIZE))
             try:
                 # HOG features
                 hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
