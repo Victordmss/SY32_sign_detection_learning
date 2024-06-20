@@ -6,7 +6,9 @@ import matplotlib.patches as patches
 import cv2
 import random
 
-AVERAGE_SIZE = (127, 145)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
+AVERAGE_SIZE_SIGN = (100, 100)  # Computed with statistics
+AVERAGE_SIZE_LIGHT = (43, 100)   # Computed with statistics
+WINDOW_SIZE = (64, 64)
 
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
@@ -100,11 +102,11 @@ def plot_bbox_image(image, boxes):
 #  Generate an empty box for images without label
 def generate_empty_bbox(image_width, image_height):
     # Generating random coords for the bbox
-    x_min = random.randint(0, image_width - AVERAGE_SIZE[0])
-    y_min = random.randint(0, image_height - AVERAGE_SIZE[1])
+    x_min = random.randint(0, image_width - AVERAGE_SIZE_SIGN[0])
+    y_min = random.randint(0, image_height - AVERAGE_SIZE_SIGN[1])
     
     # Compute complete coords of the bbox
-    x_max = x_min + AVERAGE_SIZE[0]
-    y_max = y_min + AVERAGE_SIZE[1]
+    x_max = x_min + AVERAGE_SIZE_SIGN[0]
+    y_max = y_min + AVERAGE_SIZE_SIGN[1]
     
     return (x_min, y_min, x_max, y_max)

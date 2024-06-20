@@ -9,19 +9,15 @@ from skimage.color import rgb2gray, rgb2hsv
 # ------------- IMPORT PARSER & ARGS ---------------
 
 parser = argparse.ArgumentParser()
-parser.add_argument('predicted_label_folder', metavar='DIR', help='Folder of input images to analyse')
+parser.add_argument('input_file', metavar='DIR', help='Folder of input images to analyse')
 
 # Analyser les arguments de la ligne de commande
 args = parser.parse_args()
 
 # Load predicted label folder folder
-predicted_label_folder = args.predicted_label_folder
-# Check if input folder exists
-if not os.path.exists(predicted_label_folder):
-    raise FileNotFoundError(f"[Error] Folder '{predicted_label_folder}' does not exist.")
+input_file = args.input_file
 
-
-print(f"[TRAIN FP] Start re-training on false positives with {predicted_label_folder} folder")
+print(f"[TRAIN FP] Start re-training on false positives with {input_file} results")
 
 # ------------- LOAD CLASSIFIERS -----------------
 # Dict format to store all classifiers
@@ -74,15 +70,10 @@ for filename in os.listdir(TRAINING_IMAGE_FOLDER_PATH):
 # 3. Load predicted labels
 predicted_labels = {} # Dict with all the label predicted linked with the image name
 # Load predicted datas
-for filename in os.listdir(predicted_label_folder):
-    name = filename.split(".")[0]
-    filepath = os.path.join(predicted_label_folder, filename)
-
-    predicted_labels[name] = []
-    with open(filepath, "r") as label_file:
-        for row in label_file.readlines():
-            row = row.split(",")
-            predicted_labels[name].append([int(row[0]), int(row[1]), int(row[2]), int(row[3]), row[4]])
+with open(input_file, "r") as label_file:
+    for row in label_file.readlines():
+        row = row.split(",")
+        predicted_labels[row[0]].append([int(row[1]), int(row[2]), int(row[3]), int(row[4]), row[5]])
 
 
 # ------------- ANALYSIS OF THE PREDICTIONS -----------------
@@ -180,7 +171,7 @@ datasets = {
 
 for name, labels in new_training_labels.items():
     for label in labels:
-            region = np.array(Image.fromarray(images[name][label[1]:label[3], label[0]:label[2]]).resize(AVERAGE_SIZE))
+            region = np.array(Image.fromarray(images[name][label[1]:label[3], label[0]:label[2]]).resize(AVERAGE_SIZE_SIGN))
             try:
                 # HOG features
                 hog_features = np.array(hog(rgb2gray(region), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()

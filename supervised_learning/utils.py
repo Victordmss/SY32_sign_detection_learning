@@ -23,7 +23,7 @@ def import_datas_into_dict(image_dir, label_dir):
             if rows == ['\n']:
                 for i in range(5):
                     xmin, ymin, xmax, ymax = generate_empty_bbox(image.shape[1], image.shape[0])
-                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE))
+                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE_SIGN))
                     label_data[i] = {
                         "name": "empty",
                         "coord": (xmin, ymin, xmax, ymax),
@@ -34,7 +34,7 @@ def import_datas_into_dict(image_dir, label_dir):
                     row = row.strip().split(",")
                     xmin, ymin, xmax, ymax = map(int, row[0:4])
                     class_name = row[4]
-                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE))
+                    cropped_image = np.array(Image.fromarray(image[ymin:ymax, xmin:xmax]).resize(AVERAGE_SIZE_SIGN))
                     label_data[i] = {
                         "name": class_name,
                         "coord": (xmin, ymin, xmax, ymax),
@@ -67,12 +67,29 @@ def create_binary_classification_dataset(datas, key):
             # Concatenate ROI features
             roi_features = np.concatenate((hog_features, color_features))
 
-            if label["name"] == key:
-                X.append(roi_features)  # Add informations into X 
-                Y.append(1)  # "key" sign, classification value is 1
+            if key == "feux":  # Create dataset to classificate general light (no matter color) 
+                if label["name"] in ['forange', 'fvert', 'frouge']:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                else:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (other classes), classification value is 0
+            elif key in ['forange', 'fvert', 'frouge']:  # Create dataset to classificate color of the light
+                colors_except_key = [color for color in ['forange', 'fvert', 'frouge'] if color != key]  # Create a list with all light colors except the on that we want to classificate
+                if label["name"] == key:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                elif label["name"] in colors_except_key:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (not the color of the light), classification value is 0
             else:
-                X.append(roi_features)  # Add informations into X
-                Y.append(0)  # Non-"key" (other classes), classification value is 0
+                if label["name"] == key:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                else:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (other classes), classification value is 0
+                
 
     return np.array(X), np.array(Y)
 
@@ -82,11 +99,13 @@ def extract_rois_from_image(image, classifiers_dict):
     # Loop over the image pyramid
     for resized, scale  in pyramid(image):
         # Loop over the sliding window for each layer of the pyramid
-        for (x, y, window) in sliding_window(resized, step_size=STEP_SIZE, window_size=AVERAGE_SIZE):
+        for (x, y, window) in sliding_window(resized, step_size=STEP_SIZE):
             # If the window does not meet our desired window size, ignore it
-            if window.shape[0] != AVERAGE_SIZE[1] or window.shape[1] != AVERAGE_SIZE[0]:
+            if window.shape[0] != WINDOW_SIZE[1] or window.shape[1] != WINDOW_SIZE[0]:
                 continue
             
+            window = np.array(Image.fromarray(window).resize(AVERAGE_SIZE_SIGN))
+
             # HOG features
             hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
         
@@ -125,13 +144,13 @@ def extract_rois_from_image(image, classifiers_dict):
             if max_classe not in ["empty", "frouge", "fvert", "forange"]:
                 x0 = int(x * scale)
                 y0 = int(y * scale)
-                x1 = int((x + AVERAGE_SIZE[0]) * scale)
-                y1 = int((y + AVERAGE_SIZE[1]) * scale)
+                x1 = int((x + WINDOW_SIZE[0]) * scale)
+                y1 = int((y + WINDOW_SIZE[1]) * scale)
                 rois.append([x0, y0, x1, y1, max_classe, max_proba])               
     return rois
 
 # Function to compute a slidding window process
-def sliding_window(image, step_size=STEP_SIZE, window_size=AVERAGE_SIZE):
+def sliding_window(image, step_size=STEP_SIZE, window_size=WINDOW_SIZE):
     # Slide a window across the image
     for y in range(0, image.shape[0] - window_size[1], step_size):
         for x in range(0, image.shape[1] - window_size[0], step_size):
