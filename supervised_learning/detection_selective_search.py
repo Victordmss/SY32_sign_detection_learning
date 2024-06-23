@@ -102,7 +102,8 @@ with open(output_file, "w") as f:
                     }
                     max_proba = 0
                     max_classe = "empty"
-                    if largeur<1.5*hauteur and 1.5*largeur>hauteur:
+                    #Sign
+                    if largeur<1.5*hauteur and 1.5*largeur>hauteur: #Square-like window
                         for classe, classifier in classifiers.items():
                             if classe not in ["feux", "fvert", "frouge", "forange"]:
                                 proba = classifier.predict_proba(roi_features)[0][1]
@@ -116,14 +117,14 @@ with open(output_file, "w") as f:
                                 max_proba = proba
                                 max_classe = classe
                     
-                    # Classification d'un potentiel feu
-                    if 1.5*largeur<hauteur:
+                    # Light
+                    if 1.5*largeur<hauteur: #Rectangle-like window
                         proba = classifiers["feux"].predict_proba(roi_features)[0][1]
                         if proba > 0.95 and proba > max_proba:
                             
                             max_proba = proba
                             max_classe = "feux"
-                            # 1.3.3 Classificate the color of the lights 
+                            # Classificate the color of the lights 
                             for classe, classifier in classifiers.items():
                                 if classe in ["fvert", "frouge", "forange"]:
                                     proba = classifier.predict_proba(roi_features)[0][1]
@@ -141,7 +142,7 @@ with open(output_file, "w") as f:
                     if max_classe != "empty":
                         rois.append([x0, y0, x1, y1, max_classe, max_proba])             
 
-        # 2. Filter rois with Non Maximum Suppression process
+        # Filter rois with Non Maximum Suppression process
         rois = non_max_suppression(rois, iou_threshold=0.1)     
 
         for roi in rois:
@@ -150,9 +151,9 @@ with open(output_file, "w") as f:
             print(area)
            
 
-        #display_rois(image, rois)
+        #display_rois(image, rois)  #Uncomment to display 
 
-        # 3. Write predicted labels into prediction files
+        # Write predicted labels into prediction files
         for roi in rois:
             x0, y0, x1, y1, classe, score = roi
             row = f"{name}, {x0},{y0},{x1},{y1},{score},{classe}\n"
