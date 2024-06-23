@@ -6,8 +6,11 @@ import matplotlib.patches as patches
 import cv2
 import random
 
-AVERAGE_SIZE = (127, 145)  # Thanks to the stats, we know that size of bbox will be (127, 145) -> Average size of labels 
-
+AVERAGE_SIZE = (100, 100)  # Computed with statistics
+WINDOW_SIZE_SIGN = (64, 64)
+WINDOW_SIZE_LIGHT = (43, 100)
+AREA_THRESHOLD = 3500 # prevent to classificate too little sign/light
+ 
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
     "danger": 0,

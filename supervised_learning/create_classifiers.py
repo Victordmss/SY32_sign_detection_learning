@@ -46,6 +46,10 @@ datasets = {
             "X" : [],
             "Y": []
         }, 
+        "feux" : {
+             "X": [],
+             "Y": []
+        }
     },
     "val": {
         "danger" : {
@@ -79,20 +83,11 @@ datasets = {
         "fvert": {
             "X" : [],
             "Y": []
-        },
-         
-    },
-    "feux_train": {
-         "feux": {
-              "X":[],
-              "Y":[]
-         },
-    },
-    "feux_val": {
-         "feux": {
-              "X":[],
-              "Y":[]
-         },
+        }, 
+        "feux" : {
+             "X": [],
+             "Y": []
+        }
     }   
 }
 
@@ -106,6 +101,10 @@ for classe in CLASSES:
         datasets["val"][classe]["X"], datasets["val"][classe]["Y"] = create_binary_classification_dataset(datas_val, classe)
         
 
+# Create a dataset for general light classifier
+datasets["train"]["feux"]["X"], datasets["train"]["feux"]["Y"] = create_binary_classification_dataset(datas_train, "feux")
+datasets["val"]["feux"]["X"], datasets["val"]["feux"]["Y"] = create_binary_classification_dataset(datas_val, "feux")
+
 # Dict format to store all classifiers
 classifiers = {
     "danger" : None, 
@@ -116,19 +115,21 @@ classifiers = {
     "frouge": None, 
     "forange": None, 
     "fvert": None,
+    "feux": None
 }
 
 # ------------- CREATE CLASSIFIERS -----------------
 print("Creating classifiers...")
-for classe in CLASSES:
+for classe in classifiers.keys():
     if classe not in ['ff', 'empty']:
         classifiers[classe] = svm.SVC(kernel='poly', probability=True)
 
 
 # ------------- TRAIN & TEST CLASSIFIERS -----------------
 print("Train and testing all classifiers...")
-for classe in CLASSES:
-    if classe not in ['ff', 'empty','feux']:
+
+for classe in classifiers.keys():
+    if classe not in ['ff', 'empty']:
         X_train, y_train = datasets['train'][classe]["X"], datasets['train'][classe]["Y"]
         X_val, y_val = datasets['val'][classe]["X"], datasets['val'][classe]["Y"]
         classifiers[classe].fit(X_train, y_train)
