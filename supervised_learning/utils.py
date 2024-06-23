@@ -67,78 +67,41 @@ def create_binary_classification_dataset(datas, key):
             # Concatenate ROI features
             roi_features = np.concatenate((hog_features, color_features))
 
-            if label["name"] == key:
-                X.append(roi_features)  # Add informations into X 
-                Y.append(1)  # "key" sign, classification value is 1
+            if key == "feux":  # Create dataset to classificate general light (no matter color) 
+                if label["name"] in ['forange', 'fvert', 'frouge']:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                else:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (other classes), classification value is 0
+            elif key in ['forange', 'fvert', 'frouge']:  # Create dataset to classificate color of the light
+                colors_except_key = [color for color in ['forange', 'fvert', 'frouge'] if color != key]  # Create a list with all light colors except the on that we want to classificate
+                if label["name"] == key:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                elif label["name"] in colors_except_key:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (not the color of the light), classification value is 0
             else:
-                X.append(roi_features)  # Add informations into X
-                Y.append(0)  # Non-"key" (other classes), classification value is 0
+                if label["name"] == key:
+                    X.append(roi_features)  # Add informations into X 
+                    Y.append(1)  # "key" sign, classification value is 1
+                else:
+                    X.append(roi_features)  # Add informations into X
+                    Y.append(0)  # Non-"key" (other classes), classification value is 0
+                
 
     return np.array(X), np.array(Y)
 
-# Function to extract all regions of interest from an image
-def extract_rois_from_image(image, classifiers_dict):
-    rois = []
-    # Loop over the image pyramid
-    for resized, scale  in pyramid(image):
-        # Loop over the sliding window for each layer of the pyramid
-        for (x, y, window) in sliding_window(resized, step_size=STEP_SIZE, window_size=AVERAGE_SIZE):
-            # If the window does not meet our desired window size, ignore it
-            if window.shape[0] != AVERAGE_SIZE[1] or window.shape[1] != AVERAGE_SIZE[0]:
-                continue
-            
-            # HOG features
-            hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-        
-            # HUE features            
-            color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
-            
-            # Concatenate ROI features
-            roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
-            
-            probas = {
-                "danger" : None, 
-                "interdiction": None,
-                "obligation": None, 
-                "stop": None,
-                "ceder": None, 
-                "frouge": None, 
-                "forange": None, 
-                "fvert": None
-            }
-
-            for classe, classifier in classifiers_dict.items():
-                proba = classifier.predict_proba(roi_features)[0][1]
-                if proba > 0.7:
-                    probas[classe] = proba
-                else:
-                    probas[classe] = 0
-            
-            max_proba = 0
-            max_classe = "empty"
-            for classe, proba in probas.items():
-                if proba > max_proba:
-                    max_proba = proba
-                    max_classe = classe
-            
-            
-            if max_classe not in ["empty", "frouge", "fvert", "forange"]:
-                x0 = int(x * scale)
-                y0 = int(y * scale)
-                x1 = int((x + AVERAGE_SIZE[0]) * scale)
-                y1 = int((y + AVERAGE_SIZE[1]) * scale)
-                rois.append([x0, y0, x1, y1, max_classe, max_proba])               
-    return rois
-
 # Function to compute a slidding window process
-def sliding_window(image, step_size=STEP_SIZE, window_size=AVERAGE_SIZE):
+def sliding_window(image, step_size, window_size):
     # Slide a window across the image
     for y in range(0, image.shape[0] - window_size[1], step_size):
         for x in range(0, image.shape[1] - window_size[0], step_size):
             yield (x, y, image[y:y + window_size[1], x:x + window_size[0]])
 
 # Function to change scale of the image to compute dynamic slidding window process
-def pyramid(image, scale=1.5, min_size=(30, 30)):
+def pyramid(image, scale=2, min_size=(30, 30)):
     # Yield the original image
     yield image, 1
     
@@ -268,3 +231,18 @@ def calculate_iou(bbox1, bbox2):
     iou = intersection_area / union_area
 
     return iou
+
+# Function that process a selective search on the current image
+def selective_search(image):
+    regions = []
+    
+    segments = cv2.ximgproc.segmentation.createSelectiveSearchSegmentation()
+    segments.setBaseImage(image)
+    segments.switchToSelectiveSearchFast() 
+
+    rects = segments.process()
+
+    for (x, y, w, h) in rects:
+        regions.append((x, y, x + w, y + h))  
+    
+    return regions
