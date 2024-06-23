@@ -102,7 +102,7 @@ with open(output_file, "w") as f:
                     }
                     max_proba = 0
                     max_classe = "empty"
-                    if largeur<1.5*hauteur and 2*largeur>hauteur:
+                    if largeur<1.5*hauteur and 1.5*largeur>hauteur:
                         for classe, classifier in classifiers.items():
                             if classe not in ["feux", "fvert", "frouge", "forange"]:
                                 proba = classifier.predict_proba(roi_features)[0][1]
