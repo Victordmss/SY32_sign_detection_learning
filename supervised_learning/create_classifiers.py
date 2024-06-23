@@ -99,6 +99,7 @@ for classe in CLASSES:
     if classe not in ['ff', 'empty']:
         datasets["train"][classe]["X"], datasets["train"][classe]["Y"] = create_binary_classification_dataset(datas_train, classe)
         datasets["val"][classe]["X"], datasets["val"][classe]["Y"] = create_binary_classification_dataset(datas_val, classe)
+        
 
 # Create a dataset for general light classifier
 datasets["train"]["feux"]["X"], datasets["train"]["feux"]["Y"] = create_binary_classification_dataset(datas_train, "feux")
@@ -134,7 +135,6 @@ for classe in classifiers.keys():
         classifiers[classe].fit(X_train, y_train)
         y_pred = classifiers[classe].predict(X_val)
         print(f"Précision pour panneaux {classe}: {np.mean(y_pred == y_val)}")
-
 
 # ------------- SAVE CLASSIFIERS -----------------
 print("Saving classifiers")

@@ -1,4 +1,3 @@
-from supervised_learning.detection import *
 from supervised_learning.config import *
 from supervised_learning.utils import *
 from PIL import Image, ImageDraw, ImageFont, ImageColor
@@ -6,8 +5,30 @@ import os
 import csv
 import random
 import matplotlib.pyplot as plt
+import argparse 
 
-#detecteur(VAL_IMAGE_FOLDER_PATH, PREDICTION_LABEL_FOLDER_PATH)
+# ------------- IMPORT PARSER & ARGS ---------------
+
+parser = argparse.ArgumentParser()
+parser.add_argument('img_folder', metavar='DIR', help='Folder of input images to analyse')
+parser.add_argument('pred_folder', metavar='DIR', help='Folder of predicted labels from the analysis')
+
+# Analyser les arguments de la ligne de commande
+args = parser.parse_args()
+
+
+# Load input folder
+img_folder = args.img_folder
+# Check if input folder exists
+if not os.path.exists(img_folder):
+    raise FileNotFoundError(f"[Error] Folder '{img_folder}' does not exist.")
+
+# Load input folder
+pred_folder = args.pred_folder
+# Check if input folder exists
+if not os.path.exists(pred_folder):
+    raise FileNotFoundError(f"[Error] Folder '{pred_folder}' does not exist.")
+
 
 def calculate_text_size(text, font):
     # calculate text size based on font properties
@@ -80,9 +101,9 @@ fig, axs = plt.subplots(2, 5, figsize=(12, 6))
 for ax in axs.ravel():
     #images_dir = os.path.join("train", "images")
     #labels_dir = os.path.join("train", "labels")
-    image_name = random.choice(os.listdir(VAL_IMAGE_FOLDER_PATH))
-    image_path = os.path.join(VAL_IMAGE_FOLDER_PATH, image_name)
-    csv_path = os.path.join(PREDICTION_LABEL_FOLDER_PATH, image_name[:-4] + ".csv")   
+    image_name = random.choice(os.listdir(img_folder))
+    image_path = os.path.join(img_folder, image_name)
+    csv_path = os.path.join(pred_folder, image_name[:-4] + ".csv")   
     # Call visualize_image function to modify the image
     image_to_display = visualize_image(image_path, csv_path)
     

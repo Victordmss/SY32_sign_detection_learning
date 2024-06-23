@@ -13,6 +13,7 @@ parser.add_argument('output_file', metavar='DIR', help='Folder of output labels 
 # Analyser les arguments de la ligne de commande
 args = parser.parse_args()
 
+
 # Load input folder
 input_folder = args.input_folder
 # Check if input folder exists
