@@ -9,7 +9,7 @@ import random
 AVERAGE_SIZE = (100, 100)  # Computed with statistics
 WINDOW_SIZE_SIGN = (64, 64)
 WINDOW_SIZE_LIGHT = (43, 100)
-AREA_THRESHOLD = 300  # 0.05 quantile for all the areas of the training dataset, prevent to classificate too little sign/light
+AREA_THRESHOLD = 3500 # prevent to classificate too little sign/light
  
 # Dictionary for mapping class names to integers
 CLASSE_TO_INT = {
@@ -103,11 +103,11 @@ def plot_bbox_image(image, boxes):
 #  Generate an empty box for images without label
 def generate_empty_bbox(image_width, image_height):
     # Generating random coords for the bbox
-    x_min = random.randint(0, image_width - AVERAGE_SIZE_SIGN[0])
-    y_min = random.randint(0, image_height - AVERAGE_SIZE_SIGN[1])
+    x_min = random.randint(0, image_width - AVERAGE_SIZE[0])
+    y_min = random.randint(0, image_height - AVERAGE_SIZE[1])
     
     # Compute complete coords of the bbox
-    x_max = x_min + AVERAGE_SIZE_SIGN[0]
-    y_max = y_min + AVERAGE_SIZE_SIGN[1]
+    x_max = x_min + AVERAGE_SIZE[0]
+    y_max = y_min + AVERAGE_SIZE[1]
     
     return (x_min, y_min, x_max, y_max)
