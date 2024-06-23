@@ -76,52 +76,70 @@ with open(output_file, "w") as f:
         rois_ss = selective_search(image)
         for roi in rois_ss[:500]:
             x0, y0, x1, y1 = roi
-
-            area = (int(x1) - int(x0) + 1) * (int(y1) - int(y0) + 1)
+            largeur=int(x1) - int(x0) + 1
+            hauteur=int(y1) - int(y0) + 1
+            area = largeur * hauteur
             
             if area > AREA_THRESHOLD:
-                window = np.array(Image.fromarray(image[y0:y1, x0:x1]).resize(AVERAGE_SIZE))
+                if largeur<1.5*hauteur and 3.5*largeur>hauteur:
+                    window = np.array(Image.fromarray(image[y0:y1, x0:x1]).resize(AVERAGE_SIZE))
 
-                # HOG features
-                hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
-                
-                # HUE features            
-                color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
+                    # HOG features
+                    hog_features = np.array(hog(rgb2gray(window), pixels_per_cell=(16, 16), cells_per_block=(2, 2), block_norm='L2-Hys')).flatten()
                     
-                # Concatenate ROI features
-                roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
+                    # HUE features            
+                    color_features = np.histogram(rgb2hsv(window)[:,:,0], bins=10, range=(0, 1), density=True)[0]
+                        
+                    # Concatenate ROI features
+                    roi_features = np.concatenate((hog_features, color_features)).reshape(1, -1)
+                        
+                    probas = {
+                        "danger" : 0, 
+                        "interdiction": 0,
+                        "obligation": 0, 
+                        "stop": 0,
+                        "ceder": 0,
+                    }
+                    max_proba = 0
+                    max_classe = "empty"
+                    if largeur<1.5*hauteur and 2*largeur>hauteur:
+                        for classe, classifier in classifiers.items():
+                            if classe not in ["feux", "fvert", "frouge", "forange"]:
+                                proba = classifier.predict_proba(roi_features)[0][1]
+                                if proba > 0.7:
+                                    probas[classe] = proba
+                                else:
+                                    probas[classe] = 0
+                        
+                        for classe, proba in probas.items():
+                            if proba > max_proba:
+                                max_proba = proba
+                                max_classe = classe
                     
-                probas = {
-                    "danger" : None, 
-                    "interdiction": None,
-                    "obligation": None, 
-                    "stop": None,
-                    "ceder": None, 
-                }
-
-                for classe, classifier in classifiers.items():
-                    if classe not in ["feux", "fvert", "frouge", "forange"]:
-                        proba = classifier.predict_proba(roi_features)[0][1]
-                        if proba > 0.7:
-                            probas[classe] = proba
-                        else:
-                            probas[classe] = 0
-                
-                max_proba = 0
-                max_classe = "empty"
-                for classe, proba in probas.items():
-                    if proba > max_proba:
-                        max_proba = proba
-                        max_classe = classe
-                
-                # Classificate if there is a light
-                proba = classifiers["feux"].predict_proba(roi_features)[0][1]
-                if proba > 0.95 and proba > max_proba:
-                    max_proba = proba
-                    max_classe = "feux"
-
-                if max_classe != "empty":
-                    rois.append([x0, y0, x1, y1, max_classe, max_proba])             
+                    # Classification d'un potentiel feu
+                    if 1.5*largeur<hauteur:
+                        proba = classifiers["feux"].predict_proba(roi_features)[0][1]
+                        if proba > 0.95 and proba > max_proba:
+                            
+                            max_proba = proba
+                            max_classe = "feux"
+                            # 1.3.3 Classificate the color of the lights 
+                            for classe, classifier in classifiers.items():
+                                if classe in ["fvert", "frouge", "forange"]:
+                                    proba = classifier.predict_proba(roi_features)[0][1]
+                                    if proba > 0.7:
+                                        probas[classe] = proba
+                                    else:
+                                        probas[classe] = 0
+                                    
+                                    max_proba = 0
+                                    max_classe = "empty"
+                                    for classe, proba in probas.items():
+                                        if proba > max_proba:
+                                            max_proba = proba
+                                            max_classe = classe
+                    if max_classe != "empty":
+                        rois.append([x0, y0, x1, y1, max_classe, max_proba])             
 
         # 2. Filter rois with Non Maximum Suppression process
         rois = non_max_suppression(rois, iou_threshold=0.1)     
@@ -130,8 +148,9 @@ with open(output_file, "w") as f:
             x0, y0, x1, y1 = roi[:4]
             area = (int(x1) - int(x0) + 1) * (int(y1) - int(y0) + 1)
             print(area)
+           
 
-        display_rois(image, rois)
+        #display_rois(image, rois)
 
         # 3. Write predicted labels into prediction files
         for roi in rois:
