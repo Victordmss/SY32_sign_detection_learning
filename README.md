@@ -32,7 +32,7 @@ Chaque répertoire (`supervised_learning` et `deep_learning`) contient un fichie
    git clone https://gitlab.utc.fr/vdemessa/sy32_project.git
 2. Accedez au répertoire du projet :
    ```bash
-   cd sy32_project/
+   cd SY32_sign_detection_learning/
 3. Installez les dépendances nécessaires :
    ```bash
    pip install -r requirements.txt
