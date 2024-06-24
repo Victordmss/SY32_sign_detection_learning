@@ -15,6 +15,11 @@ Le projet est structuré comme suit :
   - `test/` : Données de test
   - `val/` : Données de validation
 - `utils/` : Contient des fonctions importantes et utiles à tous les modules.
+- `docs/` : Contient les documents importants du projet.
+  - `Rapport.pdf/` : Rapport au format pdf
+  - `Rapport/` : Rapport au format latex
+  - `Projet.pdf/` : Consigne du projet
+
 
 ## Utilisation
 
