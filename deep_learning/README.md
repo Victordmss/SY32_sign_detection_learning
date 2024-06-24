@@ -6,9 +6,9 @@ Cette sous partie du projet vise à développer un système de détection de pan
 
 - `deep_learning/` : Répertoire principal du projet contenant le code source pour l'apprentissage du modèle et la détection des panneaux.
     - `main.py` : Point d'entrée pour lancer le programme.
-    - `signClassifier.py` : Module contenant les définitions du modèle CNN pour la classification des panneaux.
+    - `signClassifier.py` : Module contenant les définitions des modèles CNNs pour la classification et détection des panneaux/feux de signalisation.
     - `config.py` : Fichier de configuration du réseau de neurones.
-    - `train.py` : Module contenant les définitions du système d'entrainement du modèle
+    - `utiles.py` : Module contenant les fonctions utilitaires du module.
 
 - `data/` : Répertoire pour stocker les données d'entraînement et de test.
 - `utils/` : Répertoire contenant des utilitaires et des scripts auxiliaires.

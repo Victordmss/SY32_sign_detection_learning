@@ -9,7 +9,7 @@ from skimage.color import rgb2gray, rgb2hsv
 # ------------- IMPORT PARSER & ARGS ---------------
 
 parser = argparse.ArgumentParser()
-parser.add_argument('input_file', metavar='DIR', help='Folder of input images to analyse')
+parser.add_argument('input_file', metavar='DIR', help='Folder of results datas to analyse')
 
 # Analyser les arguments de la ligne de commande
 args = parser.parse_args()
